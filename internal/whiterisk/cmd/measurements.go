@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/salam/swissmeteocli/internal/whiterisk/api"
+	"github.com/salam/swissmeteocli/pkg/i18n"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/salam/swissmeteocli/pkg/source"
 	"github.com/spf13/cobra"
@@ -47,7 +48,7 @@ func showIMISMeasurements(client *api.Client, station string) error {
 		return nil
 	}
 	output.Section(fmt.Sprintf("IMIS Station: %s", station))
-	headers := []string{"TIME", "TEMP", "HUMIDITY", "SNOW", "WIND", "GUSTS", "DIR"}
+	headers := []string{i18n.T("TIME"), i18n.T("TEMP"), i18n.T("HUMIDITY"), i18n.T("SNOW"), i18n.T("WIND"), i18n.T("GUSTS"), i18n.T("DIR")}
 	var rows [][]string
 	for _, m := range measurements {
 		rows = append(rows, []string{
@@ -76,7 +77,7 @@ func showStudyPlotMeasurements(client *api.Client, station string) error {
 		return nil
 	}
 	output.Section(fmt.Sprintf("Study Plot Station: %s", station))
-	headers := []string{"TIME", "SNOW HEIGHT", "NEW SNOW 24h", "WATER EQ"}
+	headers := []string{i18n.T("TIME"), i18n.T("SNOW HEIGHT"), i18n.T("NEW SNOW 24h"), i18n.T("WATER EQ")}
 	var rows [][]string
 	for _, m := range measurements {
 		rows = append(rows, []string{

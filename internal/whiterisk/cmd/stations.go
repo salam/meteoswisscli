@@ -9,6 +9,7 @@ import (
 
 	"github.com/salam/swissmeteocli/internal/whiterisk/api"
 	"github.com/salam/swissmeteocli/pkg/geo"
+	"github.com/salam/swissmeteocli/pkg/i18n"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/salam/swissmeteocli/pkg/source"
 	"github.com/spf13/cobra"
@@ -113,8 +114,8 @@ func listIMISStations(client *api.Client) error {
 			return nil
 		}
 
-		output.Section(fmt.Sprintf("IMIS Stations near %s (%d)", label, len(withDist)))
-		headers := []string{"CODE", "NAME", "ELEVATION", "CANTON", "TYPE", "DISTANCE"}
+		output.Section(fmt.Sprintf("%s near %s (%d)", i18n.T("IMIS Stations"), label, len(withDist)))
+		headers := []string{i18n.T("CODE"), i18n.T("NAME"), i18n.T("ELEVATION"), i18n.T("CANTON"), i18n.T("TYPE"), i18n.T("DISTANCE")}
 		var rows [][]string
 		for _, sd := range withDist {
 			s := sd.station
@@ -144,8 +145,8 @@ func listIMISStations(client *api.Client) error {
 		output.JSON(map[string]any{"stations": stations, "count": len(stations), "source": source.SLF})
 		return nil
 	}
-	output.Section(fmt.Sprintf("IMIS Stations (%d)", len(stations)))
-	headers := []string{"CODE", "NAME", "ELEVATION", "CANTON", "TYPE"}
+	output.Section(fmt.Sprintf("%s (%d)", i18n.T("IMIS Stations"), len(stations)))
+	headers := []string{i18n.T("CODE"), i18n.T("NAME"), i18n.T("ELEVATION"), i18n.T("CANTON"), i18n.T("TYPE")}
 	var rows [][]string
 	for _, s := range stations {
 		rows = append(rows, []string{s.Code, s.Label, fmt.Sprintf("%.0fm", s.Elevation), s.CantonCode, s.Type})
@@ -194,8 +195,8 @@ func listStudyPlotStations(client *api.Client) error {
 			return nil
 		}
 
-		output.Section(fmt.Sprintf("Study Plot Stations near %s (%d)", label, len(withDist)))
-		headers := []string{"CODE", "NAME", "ELEVATION", "CANTON", "DISTANCE"}
+		output.Section(fmt.Sprintf("%s near %s (%d)", i18n.T("Study Plot Stations"), label, len(withDist)))
+		headers := []string{i18n.T("CODE"), i18n.T("NAME"), i18n.T("ELEVATION"), i18n.T("CANTON"), i18n.T("DISTANCE")}
 		var rows [][]string
 		for _, sd := range withDist {
 			s := sd.station
@@ -225,8 +226,8 @@ func listStudyPlotStations(client *api.Client) error {
 		output.JSON(map[string]any{"stations": stations, "count": len(stations), "source": source.SLF})
 		return nil
 	}
-	output.Section(fmt.Sprintf("Study Plot Stations (%d)", len(stations)))
-	headers := []string{"CODE", "NAME", "ELEVATION", "CANTON"}
+	output.Section(fmt.Sprintf("%s (%d)", i18n.T("Study Plot Stations"), len(stations)))
+	headers := []string{i18n.T("CODE"), i18n.T("NAME"), i18n.T("ELEVATION"), i18n.T("CANTON")}
 	var rows [][]string
 	for _, s := range stations {
 		rows = append(rows, []string{s.Code, s.Label, fmt.Sprintf("%.0fm", s.Elevation), s.CantonCode})

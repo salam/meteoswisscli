@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/salam/swissmeteocli/internal/whiterisk/api"
+	"github.com/salam/swissmeteocli/pkg/i18n"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/salam/swissmeteocli/pkg/source"
 	"github.com/spf13/cobra"
@@ -65,7 +66,7 @@ var bulletinCmd = &cobra.Command{
 				regions[i] = fmt.Sprintf("%s (%s)", r.Name, r.RegionID)
 			}
 
-			output.Section("Avalanche Bulletin")
+			output.Section(i18n.T("Avalanche Bulletin"))
 			fmt.Printf("  Regions: %s\n", strings.Join(regions, ", "))
 			fmt.Printf("  Valid:   %s → %s\n", b.ValidTime.StartTime, b.ValidTime.EndTime)
 

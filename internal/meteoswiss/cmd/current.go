@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/salam/swissmeteocli/internal/meteoswiss/api"
+	"github.com/salam/swissmeteocli/pkg/i18n"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/salam/swissmeteocli/pkg/source"
 	"github.com/spf13/cobra"
@@ -50,8 +51,8 @@ var currentCmd = &cobra.Command{
 			return nil
 		}
 
-		output.Section("Current Measurements")
-		headers := []string{"STATION", "TEMP", "HUMIDITY", "WIND", "GUSTS", "PRESSURE", "RAIN"}
+		output.Section(i18n.T("Current Measurements"))
+		headers := []string{i18n.T("STATION"), i18n.T("TEMP"), i18n.T("HUMIDITY"), i18n.T("WIND"), i18n.T("GUSTS"), i18n.T("PRESSURE"), i18n.T("RAIN")}
 		var rows [][]string
 		for _, m := range measurements {
 			rows = append(rows, []string{

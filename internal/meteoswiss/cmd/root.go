@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/salam/swissmeteocli/pkg/config"
+	"github.com/salam/swissmeteocli/pkg/i18n"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/spf13/cobra"
 )
@@ -20,6 +21,7 @@ var rootCmd = &cobra.Command{
 	Version: version,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		Lang = config.DetectLangWithEnv(langFlag, "METEOSWISS_LANG")
+		i18n.Lang = Lang
 	},
 }
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/salam/swissmeteocli/internal/meteoswiss/api"
 	"github.com/salam/swissmeteocli/pkg/geo"
+	"github.com/salam/swissmeteocli/pkg/i18n"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/salam/swissmeteocli/pkg/source"
 	"github.com/spf13/cobra"
@@ -39,12 +40,12 @@ var precipitationCmd = &cobra.Command{
 			output.JSON(result)
 			return nil
 		}
-		title := "Precipitation Forecast"
+		title := i18n.T("Precipitation Forecast")
 		if resolved.Location != nil {
 			title += " — " + resolved.Label()
 		}
 		output.Section(title)
-		headers := []string{"DATE", "PRECIP", "MIN", "MAX"}
+		headers := []string{i18n.T("DATE"), i18n.T("PRECIP"), i18n.T("MIN"), i18n.T("MAX")}
 		var rows [][]string
 		for _, d := range detail.Forecast {
 			rows = append(rows, []string{

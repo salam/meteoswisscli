@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/salam/swissmeteocli/internal/meteoswiss/api"
+	"github.com/salam/swissmeteocli/pkg/i18n"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/salam/swissmeteocli/pkg/source"
 	"github.com/spf13/cobra"
@@ -55,8 +56,8 @@ var stationsCmd = &cobra.Command{
 			return nil
 		}
 
-		output.Section(fmt.Sprintf("Stations (%d)", len(stations)))
-		headers := []string{"CODE", "TEMP", "WIND", "RAIN"}
+		output.Section(fmt.Sprintf("%s (%d)", i18n.T("Stations"), len(stations)))
+		headers := []string{i18n.T("CODE"), i18n.T("TEMP"), i18n.T("WIND"), i18n.T("RAIN")}
 		var rows [][]string
 		for _, s := range stations {
 			rows = append(rows, []string{

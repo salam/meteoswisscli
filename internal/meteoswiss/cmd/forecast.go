@@ -6,6 +6,7 @@ import (
 
 	"github.com/salam/swissmeteocli/internal/meteoswiss/api"
 	"github.com/salam/swissmeteocli/pkg/geo"
+	"github.com/salam/swissmeteocli/pkg/i18n"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/salam/swissmeteocli/pkg/source"
 	"github.com/spf13/cobra"
@@ -55,14 +56,14 @@ var forecastCmd = &cobra.Command{
 			output.Section(resolved.Label())
 		}
 
-		output.Section("Current Weather")
+		output.Section(i18n.T("Current Weather"))
 		cw := detail.CurrentWeather
 		fmt.Printf("  %s  %.1f°C  (Icon: %d)\n", cw.TimeFormatted(), cw.Temperature, cw.Icon)
 
 		if weekFlag {
-			output.Section("8-Day Forecast")
+			output.Section(i18n.T("8-Day Forecast"))
 		} else {
-			output.Section("Forecast")
+			output.Section(i18n.T("Forecast"))
 		}
 
 		days := detail.Forecast
@@ -70,7 +71,7 @@ var forecastCmd = &cobra.Command{
 			days = days[:3]
 		}
 
-		headers := []string{"DATE", "ICON", "MIN", "MAX", "PRECIP"}
+		headers := []string{i18n.T("DATE"), i18n.T("ICON"), i18n.T("MIN"), i18n.T("MAX"), i18n.T("PRECIP")}
 		var rows [][]string
 		for _, d := range days {
 			rows = append(rows, []string{
@@ -84,7 +85,7 @@ var forecastCmd = &cobra.Command{
 		output.Table(headers, rows)
 
 		if len(detail.Warnings) > 0 {
-			output.Section("Warnings")
+			output.Section(i18n.T("Warnings"))
 			for _, w := range detail.Warnings {
 				text := api.WarnTypeName(w.Type)
 				if len(w.Links) > 0 {
