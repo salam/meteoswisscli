@@ -20,22 +20,30 @@ var precipitationCmd = &cobra.Command{
 	Short: "Precipitation probability",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		plz, err := geo.ParsePLZ(args[0])
+		resolved, err := geo.ResolvePLZ(args[0])
 		if err != nil {
 			output.Error(err.Error())
 			os.Exit(1)
 		}
 		client := api.NewClient(Lang)
-		detail, err := client.GetForecast(plz)
+		detail, err := client.GetForecast(resolved.PLZ)
 		if err != nil {
 			output.Error(err.Error())
 			os.Exit(1)
 		}
 		if !output.IsInteractive() {
-			output.JSON(map[string]any{"forecast": detail.Forecast, "graph": detail.Graph, "source": source.MeteoSwiss})
+			result := map[string]any{"forecast": detail.Forecast, "graph": detail.Graph, "source": source.MeteoSwiss}
+			if resolved.Location != nil {
+				result["location"] = resolved.Label()
+			}
+			output.JSON(result)
 			return nil
 		}
-		output.Section("Precipitation Forecast")
+		title := "Precipitation Forecast"
+		if resolved.Location != nil {
+			title += " — " + resolved.Label()
+		}
+		output.Section(title)
 		headers := []string{"DATE", "PRECIP", "MIN", "MAX"}
 		var rows [][]string
 		for _, d := range detail.Forecast {

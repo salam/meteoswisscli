@@ -24,27 +24,35 @@ var forecastCmd = &cobra.Command{
 	Long:  "Show weather forecast by PLZ code (e.g. 8001), place name, or lat,lon coordinates.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		plz, err := geo.ParsePLZ(args[0])
+		resolved, err := geo.ResolvePLZ(args[0])
 		if err != nil {
 			output.Error(err.Error())
 			os.Exit(1)
 		}
 
 		client := api.NewClient(Lang)
-		detail, err := client.GetForecast(plz)
+		detail, err := client.GetForecast(resolved.PLZ)
 		if err != nil {
 			output.Error(err.Error())
 			os.Exit(1)
 		}
 
 		if !output.IsInteractive() {
-			output.JSON(map[string]any{
+			result := map[string]any{
 				"currentWeather": detail.CurrentWeather,
 				"forecast":       detail.Forecast,
 				"warnings":       detail.Warnings,
 				"source":         source.MeteoSwiss,
-			})
+			}
+			if resolved.Location != nil {
+				result["location"] = resolved.Label()
+			}
+			output.JSON(result)
 			return nil
+		}
+
+		if resolved.Location != nil {
+			output.Section(resolved.Label())
 		}
 
 		output.Section("Current Weather")

@@ -6,29 +6,58 @@ import (
 	"strings"
 )
 
+// ResolvedLocation holds the PLZ (6-digit) and the location it resolved to (if any).
+type ResolvedLocation struct {
+	PLZ      string
+	Location *Location // nil when input was a raw numeric PLZ
+}
+
+func (r ResolvedLocation) Label() string {
+	if r.Location != nil {
+		return r.Location.PLZ + " " + r.Location.Name + " " + r.Location.Kanton
+	}
+	return r.PLZ
+}
+
 func ParsePLZ(input string) (string, error) {
+	r, err := ResolvePLZ(input)
+	if err != nil {
+		return "", err
+	}
+	return r.PLZ, nil
+}
+
+func ResolvePLZ(input string) (*ResolvedLocation, error) {
 	input = strings.TrimSpace(input)
 
 	// Try coordinates
 	if lat, lon, ok := parseCoordinates(input); ok {
 		loc, err := FindNearest(lat, lon)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		return padPLZ(loc.PLZ), nil
+		return &ResolvedLocation{PLZ: padPLZ(loc.PLZ), Location: loc}, nil
 	}
 
 	// Try numeric PLZ
 	if isNumeric(input) {
-		return padPLZ(input), nil
+		// Try to find the location for display purposes
+		if err := loadLocations(); err == nil {
+			for i := range locations {
+				if locations[i].PLZ == input || padPLZ(locations[i].PLZ) == padPLZ(input) {
+					return &ResolvedLocation{PLZ: padPLZ(input), Location: &locations[i]}, nil
+				}
+			}
+		}
+		return &ResolvedLocation{PLZ: padPLZ(input)}, nil
 	}
 
 	// Try name search
 	loc, err := SearchLocation(input)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return padPLZ(loc.PLZ), nil
+	return &ResolvedLocation{PLZ: padPLZ(loc.PLZ), Location: loc}, nil
 }
 
 func padPLZ(plz string) string {
