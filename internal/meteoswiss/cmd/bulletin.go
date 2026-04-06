@@ -2,60 +2,78 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/salam/swissmeteocli/internal/meteoswiss/api"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/salam/swissmeteocli/pkg/source"
 	"github.com/spf13/cobra"
 )
 
-var bulletinRegion string
+var (
+	bulletinRegion  string
+	bulletinOutlook bool
+)
 
 func init() {
 	rootCmd.AddCommand(bulletinCmd)
-	bulletinCmd.Flags().StringVar(&bulletinRegion, "region", "", "Region: north, south, west (default: overview)")
+	bulletinCmd.Flags().StringVar(&bulletinRegion, "region", "north", "Region: north, south, west")
+	bulletinCmd.Flags().BoolVar(&bulletinOutlook, "outlook", false, "Show extended outlook instead of today's report")
 }
 
 var bulletinCmd = &cobra.Command{
 	Use:   "bulletin",
-	Short: "Weather forecast bulletin (prose)",
-	Long: `Open the MeteoSwiss weather forecast bulletin in the browser.
+	Short: "Weather forecast bulletin (prose text)",
+	Long: `Show the MeteoSwiss weather forecast in prose text.
 
-The bulletin contains prose weather forecasts for Switzerland:
-  --region north   Northern Switzerland
+Regions:
+  --region north   Northern Switzerland & Graubünden (default)
   --region south   Southern Switzerland (Ticino, Engadin)
   --region west    Western Switzerland
-  Without --region: overview for all of Switzerland`,
+
+Types:
+  Default: today's weather report (updated ~05:00, ~12:00)
+  --outlook: extended forecast outlook (updated ~22:00)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		urlMap := map[string]string{
-			"":      "https://www.meteoswiss.admin.ch/weather/weather-and-climate-from-a-to-z/weather-reports.html",
-			"north": "https://www.meteoswiss.admin.ch/weather/weather-and-climate-from-a-to-z/weather-reports.html#tab=weather-report-north",
-			"south": "https://www.meteoswiss.admin.ch/weather/weather-and-climate-from-a-to-z/weather-reports.html#tab=weather-report-south",
-			"west":  "https://www.meteoswiss.admin.ch/weather/weather-and-climate-from-a-to-z/weather-reports.html#tab=weather-report-west",
+		region := api.BulletinRegion(bulletinRegion)
+		switch region {
+		case api.RegionNorth, api.RegionSouth, api.RegionWest:
+		default:
+			output.Error(fmt.Sprintf("unknown region %q — use north, south, or west", bulletinRegion))
+			os.Exit(1)
 		}
 
-		url, ok := urlMap[bulletinRegion]
-		if !ok {
-			output.Error(fmt.Sprintf("unknown region %q — use north, south, or west", bulletinRegion))
-			return nil
+		bulletinType := api.BulletinReport
+		if bulletinOutlook {
+			bulletinType = api.BulletinOutlook
+		}
+
+		client := api.NewClient(Lang)
+		bulletin, err := client.GetBulletinText(bulletinType, region)
+		if err != nil {
+			output.Error(err.Error())
+			os.Exit(1)
 		}
 
 		if !output.IsInteractive() {
-			output.JSON(map[string]string{
-				"region": bulletinRegion,
-				"url":    url,
-				"source": source.MeteoSwiss,
+			output.JSON(map[string]any{
+				"type":    string(bulletin.Type),
+				"region":  string(bulletin.Region),
+				"lang":    bulletin.Lang,
+				"version": bulletin.Version,
+				"text":    bulletin.Text,
+				"source":  source.MeteoSwiss,
 			})
 			return nil
 		}
 
-		region := "Switzerland"
-		if bulletinRegion != "" {
-			region = bulletinRegion
+		typeName := "Weather Report"
+		if bulletinOutlook {
+			typeName = "Weather Outlook"
 		}
-		fmt.Printf("Opening weather bulletin (%s) in browser...\n", region)
-		if err := output.OpenBrowser(url); err != nil {
-			fmt.Printf("Could not open browser. Visit: %s\n", url)
-		}
+		output.Section(fmt.Sprintf("%s — %s", typeName, bulletinRegion))
+		fmt.Println()
+		fmt.Println(bulletin.Text)
 		fmt.Printf("\n%s\n", source.MeteoSwiss)
 		return nil
 	},
