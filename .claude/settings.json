@@ -256,7 +256,22 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://www.meteoschweiz.admin.ch/product/output/inca/precipitation/rate/version__20260406_1059/rate_20260406_1100.json\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://www.meteoschweiz.admin.ch/product/output/inca/precipitation/rate/version__20260406_1059/rate_20260406_1700.json\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://www.meteoschweiz.admin.ch/product/output/inca/precipitation/rate/version__20260406_1059/rate_20260406_1200.json\")",
-      "Bash(python3 -c 'import sys,json; d=json.load\\(sys.stdin\\); print\\(f'\\\\''Total frames: {d[\"count\"]}'\\\\''\\); sources = {}:*)"
+      "Bash(python3 -c 'import sys,json; d=json.load\\(sys.stdin\\); print\\(f'\\\\''Total frames: {d[\"count\"]}'\\\\''\\); sources = {}:*)",
+      "Bash(ls /Users/matthias/Development/meteoswisscli/CLAUDE*)",
+      "Bash(script -q /dev/null ./meteoswiss wind --ascii --width 80)",
+      "Bash(script -q /dev/null ./meteoswiss radar --ascii --width 40)",
+      "Bash(script -q /dev/null ./meteoswiss wind \"Arosa GR\" --ascii --width 50)",
+      "Bash(grep -oP '\\\\.d\\\\b.{0,30}' /tmp/mch_main.js)",
+      "Bash(grep -oE '\"[NLMKO]\"==.{0,20}' /tmp/mch_main.js)",
+      "Bash(grep -oE '[a-z]\\\\.d\\\\b.{0,30}' /tmp/mch_main.js)",
+      "Bash(grep -oE 'parseInt\\\\\\(.{0,40}\\\\\\)' /tmp/mch_main.js)",
+      "Bash(grep -oE '\\\\bshapes\\\\b.{0,80}' /tmp/mch_main.js)",
+      "Bash(grep -oE 'fillRect.{0,50}' /tmp/mch_main.js)",
+      "Bash(grep -oE 'putImageData.{0,50}' /tmp/mch_main.js)",
+      "Bash(grep -oE '\\\\bareas\\\\b.{0,100}' /tmp/mch_main.js)",
+      "Bash(grep -oE 'for\\\\\\(.{0,50}shapes.{0,50}\\\\\\)' /tmp/mch_main.js)",
+      "Bash(script -q /dev/null ./meteoswiss radar --ascii --width 80 --frames 1)",
+      "Bash(script -q /dev/null ./meteoswiss radar --ascii --width 100 --frames 60)"
     ]
   }
 }

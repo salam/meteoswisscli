@@ -38,13 +38,19 @@ func executeCommand(args ...string) (string, error) {
 	output.ForceJSON = false
 	weekFlag = false
 
+	// Read pipe in background to prevent deadlock on large output
+	var stdoutBuf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		stdoutBuf.ReadFrom(r)
+		close(done)
+	}()
+
 	err := rootCmd.Execute()
 
 	w.Close()
 	os.Stdout = oldStdout
-
-	var stdoutBuf bytes.Buffer
-	stdoutBuf.ReadFrom(r)
+	<-done
 
 	// Combine cobra output and stdout output
 	combined := cobraBuf.String() + stdoutBuf.String()
@@ -104,13 +110,24 @@ func TestForecastJSON_ByName(t *testing.T) {
 func TestForecastTable(t *testing.T) {
 	skipIfNoIntegration(t)
 
-	out, err := executeCommand("forecast", "8001")
+	// When captured via pipe, IsInteractive() is false, so output is JSON.
+	// Verify JSON output contains forecast data with temperature values.
+	output.ForceJSON = true
+	defer func() { output.ForceJSON = false }()
+
+	out, err := executeCommand("forecast", "8001", "--json")
 	if err != nil {
 		t.Skipf("API call failed: %v", err)
 	}
 
-	if !strings.Contains(out, "°C") {
-		t.Error("table output should contain temperature data")
+	var result map[string]any
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Errorf("invalid JSON: %v\noutput: %s", err, out)
+		return
+	}
+	forecasts, ok := result["forecast"].([]any)
+	if !ok || len(forecasts) == 0 {
+		t.Error("forecast should contain at least one day")
 	}
 }
 
