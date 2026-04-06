@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "github.com/salam/swissmeteocli/internal/meteoswiss/cmd"
 
 func main() {
-	fmt.Println("meteoswiss")
+	cmd.Execute()
 }
