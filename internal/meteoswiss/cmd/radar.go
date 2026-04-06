@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"time"
 
 	"github.com/salam/swissmeteocli/internal/meteoswiss/api"
 	"github.com/salam/swissmeteocli/pkg/output"
@@ -116,20 +118,26 @@ Use --list to see available timestamps.`,
 
 func listRadarFrames() error {
 	client := api.NewClientWithCache(Lang, ResponseCache)
-	frames, err := client.ListRadarFrames(24) // last 24 frames = ~4 hours
+	combined, _, err := listRadarAndForecastFrames(client, 24)
 	if err != nil {
 		output.Error(err.Error())
 		os.Exit(1)
 	}
 
 	if !output.IsInteractive() {
-		output.JSON(map[string]any{"frames": frames, "count": len(frames), "source": source.MeteoSwiss})
+		output.JSON(map[string]any{"frames": combined, "count": len(combined), "source": source.MeteoSwiss})
 		return nil
 	}
 
-	output.Section(fmt.Sprintf("Radar Frames (%d)", len(frames)))
-	for _, f := range frames {
-		fmt.Printf("  %s  %s\n", f.Timestamp, f.URL)
+	output.Section(fmt.Sprintf("Radar Frames (%d)", len(combined)))
+	for _, f := range combined {
+		label := formatFrameLabel(f.Timestamp)
+		src := f.Source
+		if f.URL != "" {
+			fmt.Printf("  %s  [%s]  %s\n", label, src, f.URL)
+		} else {
+			fmt.Printf("  %s  [%s]\n", label, src)
+		}
 	}
 	fmt.Printf("\n%s\n", source.MeteoSwiss)
 	return nil
@@ -137,47 +145,64 @@ func listRadarFrames() error {
 
 func renderRadarASCII() error {
 	client := api.NewClientWithCache(Lang, ResponseCache)
-	frames, err := client.ListRadarFrames(radarFrames)
+	combined, incaVersion, err := listRadarAndForecastFrames(client, radarFrames)
 	if err != nil {
 		output.Error(err.Error())
 		os.Exit(1)
 	}
 
-	if len(frames) == 0 {
+	// Limit to requested number of frames
+	if radarFrames > 0 && len(combined) > radarFrames {
+		combined = combined[len(combined)-radarFrames:]
+	}
+
+	if len(combined) == 0 {
 		output.Error("no radar frames available")
 		os.Exit(1)
 	}
 
-	for i, frame := range frames {
-		fmt.Printf("Fetching radar frame %d/%d (%s)...\n", i+1, len(frames), frame.Timestamp)
+	for i, frame := range combined {
+		label := formatFrameLabel(frame.Timestamp)
+		fmt.Printf("Fetching radar frame %d/%d (%s)...\n", i+1, len(combined), label)
 
-		// Download HDF5 to temp file
-		h5data, err := client.DownloadRadarH5(frame.URL)
-		if err != nil {
-			output.Error(fmt.Sprintf("download frame %s: %s", frame.Timestamp, err))
-			continue
+		var grid *output.RadarGrid
+
+		if frame.Source == "inca" && frame.INCATs != "" {
+			// Fetch INCA frame
+			incaFrame, err := client.GetINCAFrame(incaVersion, frame.INCATs)
+			if err != nil {
+				output.Error(fmt.Sprintf("fetch INCA frame %s: %s", frame.Timestamp, err))
+				continue
+			}
+			grid = incaFrameToGrid(incaFrame)
+		} else {
+			// Download HDF5 to temp file
+			h5data, err := client.DownloadRadarH5(frame.URL)
+			if err != nil {
+				output.Error(fmt.Sprintf("download frame %s: %s", frame.Timestamp, err))
+				continue
+			}
+
+			tmpFile, err := os.CreateTemp("", "radar-*.h5")
+			if err != nil {
+				output.Error(fmt.Sprintf("create temp file: %s", err))
+				continue
+			}
+			tmpFile.Write(h5data)
+			tmpFile.Close()
+
+			grid, err = output.ExtractRadarGrid(tmpFile.Name())
+			os.Remove(tmpFile.Name())
+			if err != nil {
+				output.Error(fmt.Sprintf("parse radar data: %s", err))
+				continue
+			}
 		}
 
-		tmpFile, err := os.CreateTemp("", "radar-*.h5")
-		if err != nil {
-			output.Error(fmt.Sprintf("create temp file: %s", err))
-			continue
-		}
-		tmpFile.Write(h5data)
-		tmpFile.Close()
-
-		// Extract and render
-		grid, err := output.ExtractRadarGrid(tmpFile.Name())
-		os.Remove(tmpFile.Name())
-		if err != nil {
-			output.Error(fmt.Sprintf("parse radar data: %s", err))
-			continue
-		}
-
-		output.Section(fmt.Sprintf("Precipitation Radar — %s", frame.Timestamp))
+		output.Section(fmt.Sprintf("Precipitation Radar — %s", label))
 		fmt.Print(output.RenderRadarASCII(grid, radarWidth, output.NoColor, !radarNoBorder, !radarNoLakes))
 
-		if i < len(frames)-1 {
+		if i < len(combined)-1 {
 			fmt.Println()
 		}
 	}
@@ -193,40 +218,52 @@ func renderRadarInteractive() error {
 	}
 
 	client := api.NewClientWithCache(Lang, ResponseCache)
-	frames, err := client.ListRadarFrames(nFrames)
+	combined, incaVersion, err := listRadarAndForecastFrames(client, nFrames)
 	if err != nil {
 		output.Error(err.Error())
 		os.Exit(1)
 	}
 
-	if len(frames) == 0 {
+	if len(combined) == 0 {
 		output.Error("no radar frames available")
 		os.Exit(1)
 	}
 
 	var iFrames []output.InteractiveFrame
-	for i, frame := range frames {
-		fmt.Printf("\rFetching radar frame %d/%d (%s)...", i+1, len(frames), frame.Timestamp)
+	for i, frame := range combined {
+		label := formatFrameLabel(frame.Timestamp)
+		fmt.Printf("\rFetching radar frame %d/%d (%s)...", i+1, len(combined), label)
 
-		h5data, err := client.DownloadRadarH5(frame.URL)
-		if err != nil {
-			output.Error(fmt.Sprintf("download frame %s: %s", frame.Timestamp, err))
-			continue
-		}
+		var grid *output.RadarGrid
 
-		tmpFile, err := os.CreateTemp("", "radar-*.h5")
-		if err != nil {
-			output.Error(fmt.Sprintf("create temp file: %s", err))
-			continue
-		}
-		tmpFile.Write(h5data)
-		tmpFile.Close()
+		if frame.Source == "inca" && frame.INCATs != "" {
+			incaFrame, err := client.GetINCAFrame(incaVersion, frame.INCATs)
+			if err != nil {
+				output.Error(fmt.Sprintf("fetch INCA frame %s: %s", frame.Timestamp, err))
+				continue
+			}
+			grid = incaFrameToGrid(incaFrame)
+		} else {
+			h5data, err := client.DownloadRadarH5(frame.URL)
+			if err != nil {
+				output.Error(fmt.Sprintf("download frame %s: %s", frame.Timestamp, err))
+				continue
+			}
 
-		grid, err := output.ExtractRadarGrid(tmpFile.Name())
-		os.Remove(tmpFile.Name())
-		if err != nil {
-			output.Error(fmt.Sprintf("parse radar data: %s", err))
-			continue
+			tmpFile, err := os.CreateTemp("", "radar-*.h5")
+			if err != nil {
+				output.Error(fmt.Sprintf("create temp file: %s", err))
+				continue
+			}
+			tmpFile.Write(h5data)
+			tmpFile.Close()
+
+			grid, err = output.ExtractRadarGrid(tmpFile.Name())
+			os.Remove(tmpFile.Name())
+			if err != nil {
+				output.Error(fmt.Sprintf("parse radar data: %s", err))
+				continue
+			}
 		}
 
 		iFrames = append(iFrames, output.InteractiveFrame{
@@ -285,6 +322,112 @@ func saveSatelliteImage(radarType api.RadarType) error {
 	fmt.Printf("Saved to %s\n", path)
 	fmt.Printf("\n%s\n", source.MeteoSwiss)
 	return nil
+}
+
+// incaFrameToGrid converts an INCA frame to a RadarGrid for rendering.
+func incaFrameToGrid(frame *api.INCAFrame) *output.RadarGrid {
+	return &output.RadarGrid{
+		Rows:   frame.Rows,
+		Cols:   frame.Cols,
+		Data:   frame.Data,
+		MinLat: 43.629,
+		MaxLat: 49.363,
+		MinLon: 3.169,
+		MaxLon: 12.462,
+	}
+}
+
+// radarAndForecastFrame combines HDF5 and INCA frame metadata.
+type radarAndForecastFrame struct {
+	Timestamp  string // "2006-01-02 15:04"
+	URL        string // HDF5 URL (empty for INCA)
+	INCATs     string // INCA timestamp "20060102_1504" (empty for HDF5)
+	IsForecast bool
+	Source     string // "hdf5" or "inca"
+}
+
+// listRadarAndForecastFrames merges HDF5 past + INCA present/future frames.
+func listRadarAndForecastFrames(client *api.Client, hdf5Limit int) ([]radarAndForecastFrame, string, error) {
+	now := time.Now().UTC()
+
+	// Get HDF5 frames
+	hdf5Frames, err := client.ListRadarFrames(hdf5Limit)
+	if err != nil {
+		return nil, "", fmt.Errorf("list HDF5 frames: %w", err)
+	}
+
+	// Try to get INCA version + timestamps
+	incaVersion, incaErr := client.GetINCAVersion()
+
+	var combined []radarAndForecastFrame
+	seen := make(map[string]bool)
+
+	// Add HDF5 frames
+	for _, f := range hdf5Frames {
+		combined = append(combined, radarAndForecastFrame{
+			Timestamp: f.Timestamp,
+			URL:       f.URL,
+			Source:    "hdf5",
+		})
+		seen[f.Timestamp] = true
+	}
+
+	// Add INCA frames (only those not already covered by HDF5)
+	if incaErr == nil && incaVersion != "" {
+		incaTimestamps, err := client.ListINCATimestamps(incaVersion, 0)
+		if err == nil {
+			for _, ts := range incaTimestamps {
+				// Convert INCA timestamp to display format
+				t, parseErr := time.Parse("20060102_1504", ts)
+				if parseErr != nil {
+					continue
+				}
+				display := t.Format("2006-01-02 15:04")
+				if seen[display] {
+					continue
+				}
+				isForecast := t.After(now.Add(-2 * time.Minute))
+				combined = append(combined, radarAndForecastFrame{
+					Timestamp:  display,
+					INCATs:     ts,
+					IsForecast: isForecast,
+					Source:     "inca",
+				})
+				seen[display] = true
+			}
+		}
+	}
+
+	sort.Slice(combined, func(i, j int) bool {
+		return combined[i].Timestamp < combined[j].Timestamp
+	})
+
+	return combined, incaVersion, nil
+}
+
+// formatFrameLabel returns a display label with forecast/now annotation.
+func formatFrameLabel(timestamp string) string {
+	t, err := time.Parse("2006-01-02 15:04", timestamp)
+	if err != nil {
+		return timestamp
+	}
+	diff := time.Since(t)
+	if diff < -30*time.Second {
+		// Future
+		mins := int((-diff).Minutes())
+		if mins < 60 {
+			return fmt.Sprintf("%s (+%dmin forecast)", timestamp, mins)
+		}
+		return fmt.Sprintf("%s (+%dh%02dmin forecast)", timestamp, mins/60, mins%60)
+	}
+	if diff < 5*time.Minute {
+		return fmt.Sprintf("%s (now)", timestamp)
+	}
+	mins := int(diff.Minutes())
+	if mins < 60 {
+		return fmt.Sprintf("%s (-%dmin)", timestamp, mins)
+	}
+	return fmt.Sprintf("%s (-%dh%02dmin)", timestamp, mins/60, mins%60)
 }
 
 func saveRadarFile() error {

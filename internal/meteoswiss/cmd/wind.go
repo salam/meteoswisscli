@@ -13,11 +13,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var windBrowser bool
+var (
+	windBrowser bool
+	windASCII   bool
+	windWidth   int
+)
 
 func init() {
 	rootCmd.AddCommand(windCmd)
 	windCmd.Flags().BoolVar(&windBrowser, "browser", false, "Open wind animation in browser instead of showing data")
+	windCmd.Flags().BoolVar(&windASCII, "ascii", false, "Render wind map as ASCII art in terminal")
+	windCmd.Flags().IntVar(&windWidth, "width", 120, "ASCII art width in columns")
 }
 
 var windCmd = &cobra.Command{
@@ -39,6 +45,25 @@ Use --browser to open the wind animation in the browser.`,
 			}
 			fmt.Println("Opening wind animation in browser...")
 			output.OpenBrowser(url)
+			return nil
+		}
+
+		if windASCII {
+			client := api.NewClientWithCache(Lang, ResponseCache)
+			measurements, err := client.GetCurrentMeasurements("")
+			if err != nil {
+				output.Error(err.Error())
+				os.Exit(1)
+			}
+			var windData []api.StationMeasurement
+			for _, m := range measurements {
+				if m.WindSpeed != "" {
+					windData = append(windData, m)
+				}
+			}
+			output.Section("Wind Map")
+			fmt.Print(renderWindASCII(windData, windWidth, output.NoColor))
+			fmt.Printf("\n%s\n", source.MeteoSwiss)
 			return nil
 		}
 
