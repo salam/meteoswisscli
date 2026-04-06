@@ -1,5 +1,11 @@
 # Release Notes
 
+## v0.1.1 (Sun, Apr 6 11:15)
+
+* INCA nowcast precipitation forecast: `radar --list` now shows frames extending up to +6h into the future using MeteoSwiss INCA data [claude]
+* ASCII wind map: `wind --ascii` renders wind direction arrows color-coded by speed on a map of Switzerland [claude]
+* Radar combines HDF5 past + INCA future frames in list, ASCII, and interactive modes [claude]
+
 ## v0.1.0 -- Initial Release (2026-04-06)
 
 First public release of meteoswisscli, providing two CLI tools for Swiss weather and avalanche data.
