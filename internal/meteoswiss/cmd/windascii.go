@@ -9,7 +9,7 @@ import (
 	"github.com/salam/swissmeteocli/pkg/output"
 )
 
-func renderWindASCII(measurements []api.StationMeasurement, width int, noColor bool) string {
+func renderWindASCII(measurements []api.StationMeasurement, width int, noColor, showBorder, showLakes bool) string {
 	const chMinLat = 45.8
 	const chMaxLat = 47.85
 	const chMinLon = 5.9
@@ -27,21 +27,23 @@ func renderWindASCII(measurements []api.StationMeasurement, width int, noColor b
 	}
 
 	// Overlay Swiss border and lakes
-	borderGrid, lakeGrid := output.RenderOverlay(width, height, chMinLat, chMaxLat, chMinLon, chMaxLon)
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			if borderGrid[y][x] {
-				if noColor {
-					grid[y][x] = "·"
-				} else {
-					grid[y][x] = "\033[38;5;240m·\033[0m"
+	if showBorder || showLakes {
+		borderGrid, lakeGrid := output.RenderOverlay(width, height, chMinLat, chMaxLat, chMinLon, chMaxLon)
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				if showBorder && borderGrid[y][x] {
+					if noColor {
+						grid[y][x] = "·"
+					} else {
+						grid[y][x] = "\033[38;5;240m·\033[0m"
+					}
 				}
-			}
-			if lakeGrid[y][x] {
-				if noColor {
-					grid[y][x] = "~"
-				} else {
-					grid[y][x] = "\033[38;5;33m~\033[0m"
+				if showLakes && lakeGrid[y][x] {
+					if noColor {
+						grid[y][x] = "~"
+					} else {
+						grid[y][x] = "\033[38;5;33m~\033[0m"
+					}
 				}
 			}
 		}

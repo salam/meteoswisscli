@@ -14,9 +14,11 @@ import (
 )
 
 var (
-	windBrowser bool
-	windASCII   bool
-	windWidth   int
+	windBrowser  bool
+	windASCII    bool
+	windWidth    int
+	windNoBorder bool
+	windNoLakes  bool
 )
 
 func init() {
@@ -24,6 +26,8 @@ func init() {
 	windCmd.Flags().BoolVar(&windBrowser, "browser", false, "Open wind animation in browser instead of showing data")
 	windCmd.Flags().BoolVar(&windASCII, "ascii", false, "Render wind map as ASCII art in terminal")
 	windCmd.Flags().IntVar(&windWidth, "width", 120, "ASCII art width in columns")
+	windCmd.Flags().BoolVar(&windNoBorder, "no-border", false, "Hide Swiss border outline (--ascii mode)")
+	windCmd.Flags().BoolVar(&windNoLakes, "no-lakes", false, "Hide lake outlines (--ascii mode)")
 }
 
 var windCmd = &cobra.Command{
@@ -62,7 +66,7 @@ Use --browser to open the wind animation in the browser.`,
 				}
 			}
 			output.Section("Wind Map")
-			fmt.Print(renderWindASCII(windData, windWidth, output.NoColor))
+			fmt.Print(renderWindASCII(windData, windWidth, output.NoColor, !windNoBorder, !windNoLakes))
 			fmt.Printf("\n%s\n", source.MeteoSwiss)
 			return nil
 		}
