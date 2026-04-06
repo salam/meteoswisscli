@@ -21,6 +21,7 @@ type Bulletin struct {
 	SnowpackStructure *TextContent       `json:"snowpackStructure,omitempty"`
 	TravelAdvisory    *TextContent       `json:"travelAdvisory,omitempty"`
 	Tendency          []Tendency         `json:"tendency,omitempty"`
+	CustomData        any                `json:"customData,omitempty"`
 }
 
 type ValidTime struct {
@@ -40,8 +41,22 @@ type DangerRating struct {
 }
 
 type ElevationRange struct {
-	LowerBound string `json:"lowerBound,omitempty"`
-	UpperBound string `json:"upperBound,omitempty"`
+	LowerBound any `json:"lowerBound,omitempty"`
+	UpperBound any `json:"upperBound,omitempty"`
+}
+
+func (e ElevationRange) LowerBoundStr() string {
+	if e.LowerBound == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", e.LowerBound)
+}
+
+func (e ElevationRange) UpperBoundStr() string {
+	if e.UpperBound == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", e.UpperBound)
 }
 
 type AvalancheProblem struct {

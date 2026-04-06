@@ -49,7 +49,7 @@ var forecastCmd = &cobra.Command{
 
 		output.Section("Current Weather")
 		cw := detail.CurrentWeather
-		fmt.Printf("  %s  %.1f°C  (Icon: %d)\n", cw.Time, cw.Temperature, cw.Icon)
+		fmt.Printf("  %s  %.1f°C  (Icon: %d)\n", cw.TimeFormatted(), cw.Temperature, cw.Icon)
 
 		if weekFlag {
 			output.Section("8-Day Forecast")

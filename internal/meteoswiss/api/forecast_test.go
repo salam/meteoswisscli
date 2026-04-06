@@ -10,7 +10,7 @@ import (
 func TestGetForecast(t *testing.T) {
 	response := PlzDetail{
 		CurrentWeather: CurrentWeather{
-			Time:        "2026-04-05T18:00:00Z",
+			Time:        1775446800000,
 			Icon:        1,
 			Temperature: 16.8,
 		},

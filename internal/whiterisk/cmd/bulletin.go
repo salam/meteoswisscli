@@ -72,11 +72,11 @@ var bulletinCmd = &cobra.Command{
 			if len(b.DangerRatings) > 0 {
 				for _, dr := range b.DangerRatings {
 					elev := ""
-					if dr.Elevation.UpperBound != "" {
-						elev = fmt.Sprintf(" (below %s)", dr.Elevation.UpperBound)
+					if ub := dr.Elevation.UpperBoundStr(); ub != "" {
+						elev = fmt.Sprintf(" (below %s)", ub)
 					}
-					if dr.Elevation.LowerBound != "" {
-						elev = fmt.Sprintf(" (above %s)", dr.Elevation.LowerBound)
+					if lb := dr.Elevation.LowerBoundStr(); lb != "" {
+						elev = fmt.Sprintf(" (above %s)", lb)
 					}
 					fmt.Printf("  Danger:  %s%s\n", api.DangerLevelDisplay(dr.MainValue), elev)
 				}
@@ -87,8 +87,8 @@ var bulletinCmd = &cobra.Command{
 				for _, p := range b.AvalancheProblems {
 					aspects := strings.Join(p.Aspects, "/")
 					elev := ""
-					if p.Elevation.LowerBound != "" {
-						elev = fmt.Sprintf(" above %s", p.Elevation.LowerBound)
+					if lb := p.Elevation.LowerBoundStr(); lb != "" {
+						elev = fmt.Sprintf(" above %s", lb)
 					}
 					fmt.Printf("    - %s — %s%s\n", p.ProblemType, aspects, elev)
 				}

@@ -21,7 +21,7 @@ func TestGetBulletin(t *testing.T) {
 					{RegionID: "CH-7231", Name: "Davos"},
 				},
 				DangerRatings: []DangerRating{
-					{MainValue: "considerable", Elevation: ElevationRange{UpperBound: "treeline"}},
+					{MainValue: "considerable", Elevation: ElevationRange{UpperBound: 2200}},
 				},
 			},
 		},
