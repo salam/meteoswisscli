@@ -35,11 +35,40 @@ type ForecastDay struct {
 }
 
 type Warning struct {
-	Type      int    `json:"warnType"`
-	Level     int    `json:"warnLevel"`
-	Text      string `json:"text"`
-	ValidFrom string `json:"validFrom"`
-	ValidTo   string `json:"validTo"`
+	Type      int           `json:"warnType"`
+	Level     int           `json:"warnLevel"`
+	ValidFrom int64         `json:"validFrom"`
+	ValidTo   int64         `json:"validTo"`
+	Ordering  string        `json:"ordering,omitempty"`
+	Outlook   bool          `json:"outlook,omitempty"`
+	Links     []WarningLink `json:"links,omitempty"`
+}
+
+type WarningLink struct {
+	URL    string `json:"url"`
+	Text   string `json:"text"`
+	AltURL string `json:"altUrl,omitempty"`
+}
+
+func (w Warning) ValidFromFormatted() string {
+	return time.UnixMilli(w.ValidFrom).Format("2006-01-02 15:04")
+}
+
+func (w Warning) ValidToFormatted() string {
+	return time.UnixMilli(w.ValidTo).Format("2006-01-02 15:04")
+}
+
+var warnTypeNames = map[int]string{
+	0: "Wind", 1: "Thunderstorm", 2: "Rain", 3: "Snow", 4: "Slippery roads",
+	5: "Frost", 6: "Heat wave", 7: "Forest fire", 8: "Avalanche",
+	9: "Earthquake", 10: "Flood",
+}
+
+func WarnTypeName(t int) string {
+	if name, ok := warnTypeNames[t]; ok {
+		return name
+	}
+	return fmt.Sprintf("Type %d", t)
 }
 
 type Graph struct {

@@ -1,3 +1,6 @@
 .research/
-meteoswiss
-whiterisk
+/meteoswiss
+/whiterisk
+dist/
+*.exe
+.DS_Store

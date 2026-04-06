@@ -61,9 +61,47 @@ func TestIsNumeric(t *testing.T) {
 	}
 }
 
-func TestParsePLZ_Coordinates_NotYetSupported(t *testing.T) {
-	_, err := ParsePLZ("47.37,8.55")
-	if err == nil {
-		t.Error("ParsePLZ with coordinates should return error until lookup is implemented")
+func TestParsePLZ_Coordinates(t *testing.T) {
+	// 47.37,8.55 is near Zürich (PLZ 8001)
+	plz, err := ParsePLZ("47.37,8.55")
+	if err != nil {
+		t.Fatalf("ParsePLZ(coordinates) error = %v", err)
+	}
+	if plz == "" {
+		t.Error("ParsePLZ(coordinates) should return a PLZ")
+	}
+}
+
+func TestSearchLocation(t *testing.T) {
+	loc, err := SearchLocation("Arosa GR")
+	if err != nil {
+		t.Fatalf("SearchLocation(Arosa GR) error = %v", err)
+	}
+	if loc.PLZ != "7050" {
+		t.Errorf("PLZ = %q, want 7050", loc.PLZ)
+	}
+	if loc.Kanton != "GR" {
+		t.Errorf("Kanton = %q, want GR", loc.Kanton)
+	}
+}
+
+func TestSearchLocation_CityOnly(t *testing.T) {
+	loc, err := SearchLocation("Zürich")
+	if err != nil {
+		t.Fatalf("SearchLocation(Zürich) error = %v", err)
+	}
+	if loc.Kanton != "ZH" {
+		t.Errorf("Kanton = %q, want ZH", loc.Kanton)
+	}
+}
+
+func TestFindNearest(t *testing.T) {
+	// Coordinates near Arosa
+	loc, err := FindNearest(46.78, 9.68)
+	if err != nil {
+		t.Fatalf("FindNearest error = %v", err)
+	}
+	if loc.PLZ != "7050" {
+		t.Errorf("PLZ = %q, want 7050 (Arosa)", loc.PLZ)
 	}
 }

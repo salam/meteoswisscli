@@ -1,7 +1,7 @@
 package geo
 
 import (
-	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -9,15 +9,26 @@ import (
 func ParsePLZ(input string) (string, error) {
 	input = strings.TrimSpace(input)
 
-	if _, _, ok := parseCoordinates(input); ok {
-		return "", fmt.Errorf("coordinate lookup not yet supported, use a PLZ code")
+	// Try coordinates
+	if lat, lon, ok := parseCoordinates(input); ok {
+		loc, err := FindNearest(lat, lon)
+		if err != nil {
+			return "", err
+		}
+		return padPLZ(loc.PLZ), nil
 	}
 
+	// Try numeric PLZ
 	if isNumeric(input) {
 		return padPLZ(input), nil
 	}
 
-	return "", fmt.Errorf("location not found. Try a PLZ code (e.g. 8001) or place name")
+	// Try name search
+	loc, err := SearchLocation(input)
+	if err != nil {
+		return "", err
+	}
+	return padPLZ(loc.PLZ), nil
 }
 
 func padPLZ(plz string) string {
@@ -54,4 +65,14 @@ func parseCoordinates(s string) (lat, lon float64, ok bool) {
 		return 0, 0, false
 	}
 	return lat, lon, true
+}
+
+func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	const R = 6371.0 // Earth radius in km
+	dLat := (lat2 - lat1) * math.Pi / 180
+	dLon := (lon2 - lon1) * math.Pi / 180
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(lat1*math.Pi/180)*math.Cos(lat2*math.Pi/180)*
+			math.Sin(dLon/2)*math.Sin(dLon/2)
+	return R * 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 }

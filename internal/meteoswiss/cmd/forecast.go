@@ -78,7 +78,11 @@ var forecastCmd = &cobra.Command{
 		if len(detail.Warnings) > 0 {
 			output.Section("Warnings")
 			for _, w := range detail.Warnings {
-				fmt.Printf("  [Level %d] %s (%s — %s)\n", w.Level, w.Text, w.ValidFrom, w.ValidTo)
+				text := api.WarnTypeName(w.Type)
+				if len(w.Links) > 0 {
+					text += " — " + w.Links[0].Text
+				}
+				fmt.Printf("  [Level %d] %s (%s — %s)\n", w.Level, text, w.ValidFromFormatted(), w.ValidToFormatted())
 			}
 		}
 
