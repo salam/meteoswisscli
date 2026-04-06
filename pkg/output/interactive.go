@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -11,6 +12,59 @@ import (
 type InteractiveFrame struct {
 	Timestamp string
 	Grid      *RadarGrid
+}
+
+// relativeTime formats a timestamp relative to now (e.g. "-30min", "now", "+1h").
+func relativeTime(timestamp string) string {
+	t, err := time.Parse("2006-01-02 15:04", timestamp)
+	if err != nil {
+		return ""
+	}
+	diff := time.Since(t)
+	if diff < -30*time.Second {
+		// Future
+		mins := int((-diff).Minutes())
+		if mins < 60 {
+			return fmt.Sprintf("+%dmin", mins)
+		}
+		return fmt.Sprintf("+%dh%02dmin", mins/60, mins%60)
+	}
+	if diff < 5*time.Minute {
+		return "now"
+	}
+	mins := int(diff.Minutes())
+	if mins < 60 {
+		return fmt.Sprintf("-%dmin", mins)
+	}
+	return fmt.Sprintf("-%dh%02dmin", mins/60, mins%60)
+}
+
+// timelineBar renders a visual timeline showing all frames and the current position.
+func timelineBar(frames []InteractiveFrame, idx, width int) string {
+	if len(frames) == 0 || width < 10 {
+		return ""
+	}
+	barWidth := width - 2 // for [ and ]
+	if barWidth > len(frames) {
+		barWidth = len(frames)
+	}
+
+	bar := make([]byte, barWidth)
+	for i := range bar {
+		bar[i] = '-'
+	}
+
+	// Mark current position
+	pos := idx * (barWidth - 1) / (len(frames) - 1)
+	if pos < 0 {
+		pos = 0
+	}
+	if pos >= barWidth {
+		pos = barWidth - 1
+	}
+	bar[pos] = '#'
+
+	return "[" + string(bar) + "]"
 }
 
 // InteractiveRadar shows radar frames with keyboard navigation.
@@ -33,9 +87,21 @@ func InteractiveRadar(frames []InteractiveFrame, width int, noColor, showBorder,
 		fmt.Print("\033[2J\033[H")
 
 		f := frames[idx]
-		fmt.Printf("Precipitation Radar — %s  [%d/%d]\r\n", f.Timestamp, idx+1, len(frames))
+		rel := relativeTime(f.Timestamp)
+		timeLabel := f.Timestamp
+		if rel != "" {
+			timeLabel += "  (" + rel + ")"
+		}
+		fmt.Printf("Precipitation Radar — %s  [%d/%d]\r\n", timeLabel, idx+1, len(frames))
+
+		// Timeline bar
+		timeline := timelineBar(frames, idx, width)
+		oldest := relativeTime(frames[0].Timestamp)
+		newest := relativeTime(frames[len(frames)-1].Timestamp)
+		fmt.Printf("%s  %s\r\n", oldest, newest)
+		fmt.Printf("%s\r\n", timeline)
 		fmt.Printf("← prev  → next  q quit\r\n\r\n")
-		// In raw mode, we need \r\n instead of \n
+
 		rendered := RenderRadarASCII(f.Grid, width, noColor, showBorder, showLakes)
 		for _, line := range splitLines(rendered) {
 			fmt.Printf("%s\r\n", line)
@@ -51,7 +117,7 @@ func InteractiveRadar(frames []InteractiveFrame, width int, noColor, showBorder,
 		if n == 1 {
 			switch buf[0] {
 			case 'q', 27: // q or ESC
-				fmt.Print("\033[2J\033[H") // clear screen on exit
+				fmt.Print("\033[2J\033[H")
 				return nil
 			case 'h': // left
 				if idx > 0 {

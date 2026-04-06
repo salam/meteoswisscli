@@ -38,19 +38,24 @@ type RadarFrame struct {
 const stacBaseURL = "https://data.geo.admin.ch/api/stac/v1"
 const radarDataBaseURL = "https://data.geo.admin.ch/ch.meteoschweiz.ogd-radar-precip"
 
-// ListRadarFrames returns available radar frames from the STAC API for today.
-// Returns CPC (CombiPrecip) HDF5 asset URLs sorted by timestamp.
+// ListRadarFrames returns available radar frames, probing beyond the STAC index
+// to find the most recent data (STAC lags ~2h, but files are accessible earlier).
 func (c *Client) ListRadarFrames(limit int) ([]RadarFrame, error) {
-	// Construct today's item ID: YYYYMMDD-ch
-	today := time.Now().UTC().Format("20060102")
-	url := fmt.Sprintf("%s/collections/ch.meteoschweiz.ogd-radar-precip/items/%s-ch", stacBaseURL, today)
+	now := time.Now().UTC()
+	today := now.Format("20060102")
+	yy := now.Format("06")
+	doy := fmt.Sprintf("%03d", now.YearDay())
 
-	data, err := c.DoRaw("GET", url)
+	// Step 1: Get frames from STAC index
+	stacURL := fmt.Sprintf("%s/collections/ch.meteoschweiz.ogd-radar-precip/items/%s-ch", stacBaseURL, today)
+	data, err := c.DoRaw("GET", stacURL)
 	if err != nil {
-		// Try yesterday if today's not available yet
-		yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("20060102")
-		url = fmt.Sprintf("%s/collections/ch.meteoschweiz.ogd-radar-precip/items/%s-ch", stacBaseURL, yesterday)
-		data, err = c.DoRaw("GET", url)
+		yesterday := now.AddDate(0, 0, -1)
+		yy = yesterday.Format("06")
+		doy = fmt.Sprintf("%03d", yesterday.YearDay())
+		today = yesterday.Format("20060102")
+		stacURL = fmt.Sprintf("%s/collections/ch.meteoschweiz.ogd-radar-precip/items/%s-ch", stacBaseURL, today)
+		data, err = c.DoRaw("GET", stacURL)
 		if err != nil {
 			return nil, fmt.Errorf("fetch radar items: %w", err)
 		}
@@ -60,57 +65,74 @@ func (c *Client) ListRadarFrames(limit int) ([]RadarFrame, error) {
 		ID     string `json:"id"`
 		Assets map[string]struct {
 			Href string `json:"href"`
-			Type string `json:"type"`
 		} `json:"assets"`
 	}
 	if err := json.Unmarshal(data, &feature); err != nil {
 		return nil, fmt.Errorf("parse STAC response: %w", err)
 	}
 
-	// Extract CPC (CombiPrecip) assets
-	// Filename format: cpcYYDDDHHMM0_00060.001.h5
-	// YY=year, DDD=day-of-year, HHMM=hour:minute, trailing 0
+	// Collect CPC frames from STAC
 	var frames []RadarFrame
+	var latestTime time.Time
 	for name, asset := range feature.Assets {
-		if !strings.HasPrefix(name, "cpc") || !strings.HasSuffix(name, ".h5") {
-			continue
+		if t, ok := parseCPCFilename(name); ok {
+			frames = append(frames, RadarFrame{Timestamp: t.Format("2006-01-02 15:04"), URL: asset.Href, Rows: 640, Cols: 710})
+			if t.After(latestTime) {
+				latestTime = t
+			}
 		}
-		// Parse: cpc + YYDDD + HHMM + 0 + _00060.001.h5
-		digits := name[3:] // strip "cpc"
-		if len(digits) < 10 {
-			continue
+	}
+
+	// Step 2: Probe forward from latest STAC entry to find newer files
+	// Files are published ~5 min apart, public access lags ~2h but files exist earlier
+	if !latestTime.IsZero() {
+		baseURL := fmt.Sprintf("%s/ch.meteoschweiz.ogd-radar-precip/%s-ch", "https://data.geo.admin.ch", today)
+		probeTime := latestTime.Add(5 * time.Minute)
+		for probeTime.Before(now) {
+			fname := fmt.Sprintf("cpc%s%s%s0_00060.001.h5", yy, doy, probeTime.Format("1504"))
+			probeURL := baseURL + "/" + fname
+			resp, err := http.Head(probeURL)
+			if err != nil || resp.StatusCode != 200 {
+				break
+			}
+			resp.Body.Close()
+			frames = append(frames, RadarFrame{
+				Timestamp: probeTime.Format("2006-01-02 15:04"),
+				URL:       probeURL,
+				Rows:      640, Cols: 710,
+			})
+			probeTime = probeTime.Add(5 * time.Minute)
 		}
-		yy := digits[0:2]
-		ddd := digits[2:5]
-		hh := digits[5:7]
-		mm := digits[7:9]
-
-		year := 2000 + atoi(yy)
-		doy := atoi(ddd)
-		hour := atoi(hh)
-		minute := atoi(mm)
-
-		if doy < 1 || doy > 366 || hour > 23 || minute > 59 {
-			continue
-		}
-
-		t := time.Date(year, 1, 1, hour, minute, 0, 0, time.UTC).AddDate(0, 0, doy-1)
-		frames = append(frames, RadarFrame{
-			Timestamp: t.Format("2006-01-02 15:04"),
-			URL:       asset.Href,
-			Rows:      640,
-			Cols:      710,
-		})
 	}
 
 	sort.Slice(frames, func(i, j int) bool { return frames[i].Timestamp < frames[j].Timestamp })
 
-	// Return last N frames
 	if limit > 0 && len(frames) > limit {
 		frames = frames[len(frames)-limit:]
 	}
 
 	return frames, nil
+}
+
+// parseCPCFilename parses a CPC HDF5 filename into a timestamp.
+// Format: cpcYYDDDHHMM0_00060.001.h5 (YY=year, DDD=day-of-year, HHMM=time)
+func parseCPCFilename(name string) (time.Time, bool) {
+	if !strings.HasPrefix(name, "cpc") || !strings.HasSuffix(name, ".h5") {
+		return time.Time{}, false
+	}
+	digits := name[3:]
+	if len(digits) < 10 {
+		return time.Time{}, false
+	}
+	year := 2000 + atoi(digits[0:2])
+	doyVal := atoi(digits[2:5])
+	hour := atoi(digits[5:7])
+	minute := atoi(digits[7:9])
+	if doyVal < 1 || doyVal > 366 || hour > 23 || minute > 59 {
+		return time.Time{}, false
+	}
+	t := time.Date(year, 1, 1, hour, minute, 0, 0, time.UTC).AddDate(0, 0, doyVal-1)
+	return t, true
 }
 
 func atoi(s string) int {
