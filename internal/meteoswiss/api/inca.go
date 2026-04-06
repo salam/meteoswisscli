@@ -201,35 +201,15 @@ func rasterizeINCA(resp *INCAResponse, timestamp string) *INCAFrame {
 }
 
 // rasterizeShape decodes the direction+opacity encoding and fills pixels.
-// The encoding works like a scanline fill:
-// - 'd' traces the polygon boundary: N=down, L=up, M=right, K=left, O=down-right
-// - 'o' encodes fill widths at scanline crossings (hex digits)
+// The 'd' string traces the polygon boundary: N=down, L=up, M=right, K=left, O=down-right.
+// The 'o' string encodes fill widths (hex digits) consumed on each vertical move (N, L, O).
+// The position moves first, then the fill width is applied horizontally from the new position.
 func rasterizeShape(grid []float64, rows, cols int, shape INCAShape, intensity float64) {
 	y := shape.I
 	x := shape.J
 	oIdx := 0
 
 	for _, ch := range shape.D {
-		// Get fill width from 'o' encoding
-		fillWidth := 0
-		if oIdx < len(shape.O) {
-			c := shape.O[oIdx]
-			if c >= '0' && c <= '9' {
-				fillWidth = int(c - '0')
-			} else if c >= 'a' && c <= 'f' {
-				fillWidth = int(c-'a') + 10
-			}
-			oIdx++
-		}
-
-		// Fill pixels
-		for dx := 0; dx < fillWidth; dx++ {
-			px := x + dx
-			if y >= 0 && y < rows && px >= 0 && px < cols {
-				grid[y*cols+px] = intensity
-			}
-		}
-
 		// Move according to direction
 		switch ch {
 		case 'N':
@@ -243,6 +223,26 @@ func rasterizeShape(grid []float64, rows, cols int, shape INCAShape, intensity f
 		case 'O':
 			y++
 			x++
+		}
+
+		// Only vertical moves (N, L, O) consume a fill width from 'o'
+		if ch == 'N' || ch == 'L' || ch == 'O' {
+			fillWidth := 0
+			if oIdx < len(shape.O) {
+				c := shape.O[oIdx]
+				if c >= '0' && c <= '9' {
+					fillWidth = int(c - '0')
+				} else if c >= 'a' && c <= 'f' {
+					fillWidth = int(c-'a') + 10
+				}
+				oIdx++
+			}
+			for dx := 0; dx < fillWidth; dx++ {
+				px := x + dx
+				if y >= 0 && y < rows && px >= 0 && px < cols {
+					grid[y*cols+px] = intensity
+				}
+			}
 		}
 	}
 }
