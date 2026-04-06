@@ -23,8 +23,8 @@
 
 - [x] Homebrew formula / tap
 - [x] GitHub Actions CI/CD pipeline (build, test, release)
-- [ ] AUR package
-- [ ] Snap / Flatpak
+- [x] AUR package
+- [x] Snap / Flatpak
 - [ ] Docker image
 
 ## Documentation

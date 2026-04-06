@@ -18,6 +18,33 @@ brew install meteoswisscli
 
 This installs both `meteoswiss` and `whiterisk` binaries.
 
+### AUR (Arch Linux)
+
+```bash
+# Using an AUR helper (e.g. yay)
+yay -S meteoswisscli-bin
+
+# Or manually
+git clone https://aur.archlinux.org/meteoswisscli-bin.git
+cd meteoswisscli-bin
+makepkg -si
+```
+
+### Snap
+
+```bash
+sudo snap install meteoswisscli
+```
+
+This installs both `meteoswiss` and `whiterisk` commands.
+
+### Flatpak
+
+```bash
+flatpak install ch.meteoswiss.cli
+flatpak run ch.meteoswiss.cli  # runs meteoswiss
+```
+
 ### Download binary
 
 Grab the latest release for your platform from [GitHub Releases](https://github.com/salam/meteoswisscli/releases) and add it to your `PATH`.
@@ -64,41 +91,48 @@ Same for `whiterisk`.
 ```
 $ meteoswiss forecast Zürich
 
---- 800100 Zürich ZH ---
+--- 8001 Zürich ZH ---
 
 --- Aktuelles Wetter ---
-  2025-04-06 12:00  18.3°C  (Icon: 2)
+  2026-04-06 15:20  19.5°C  (Icon: 3)
 
 --- Vorhersage ---
 DATUM        SYMBOL         MIN    MAX    NIEDERSCHLAG
-2025-04-06   Mostly sunny   9°C    19°C   0.0 mm
-2025-04-07   Partly cloudy  8°C    17°C   0.2 mm
-2025-04-08   Rain           6°C    12°C   8.5 mm
+2026-04-06   Mostly sunny   10°C   19°C   1.2 mm
+2026-04-07   Sunny          7°C    23°C   0.0 mm
+2026-04-08   Sunny          8°C    22°C   0.0 mm
+
+--- Warnungen ---
+  [Level 2] Frost — Verhaltensempfehlungen (2026-04-07 00:00 — 2026-04-07 08:00)
 ```
 
-### Interactive Radar
+### Precipitation Radar
 
 ```
-$ meteoswiss radar rain --interactive --frames 12
+$ meteoswiss radar rain --ascii --width 60
 
-Precipitation Radar — 2025-04-06 11:50  [12/12]
-← prev  → next  q quit
+--- Precipitation Radar — 2026-04-06 21:30 ---
+                                                            
+                                  ······~~~~~~~~~~          
+                     ··············     ~   ···· ~          
+               ······                   ~~~~~~~~~~          
+             ··                  ~~~~~        ·             
+            ·                    ~   ~        ·             
+            ·· ~~~              ~~~~~   ~~~~~ ·             
+            ·· ~~~           ~~~~~~            ·····        
+         ··~~~               ~~~~~~                 ··      
+       ··  ~~~                                       ··     
+      ·              ~~~~~~~                          ··    
+   ···                                                 ·    
+  ·~~~~~~~~~~                                       ····    
+···~       ~~                                   ····        
+···~     ~~                                 ····            
+  ·~~~~~~                         ~~~~  ····                
+       ·····                      ~  ~~~~~                  
+          ··      ················~  ~~~~~                  
+           ·······                ~~~~                      
 
-                    ·····
-              ······       ····
-           ···    ~~~~~        ···
-         ··     ~~~~~~~~  ▒▒▓    ··
-        ·    ~~~~~~         ▒▒▓▓   ·
-       ·   ~~~~              ░▒▒▓   ·
-      ·                       ░░▒    ·
-       ·                             ·
-        ·   ~~~~                   ··
-         ··  ~~  ~~~~~~          ··
-           ···       ~~~~~    ···
-              ······       ····
-                    ·····
-
-Legend: ░ <0.1mm  ▒ <0.5mm  ▓ <1mm  · border  ~ lake
+Legend: ░ <0.1mm  ▒ <0.5mm  ▓ <2mm  █ >2mm  · border  ~ lake
 ```
 
 ### Avalanche Bulletin
@@ -107,11 +141,13 @@ Legend: ░ <0.1mm  ▒ <0.5mm  ▓ <1mm  · border  ~ lake
 $ whiterisk bulletin Davos
 
 --- Lawinenbulletin ---
-  Regions: Davos (7231), Flüela (7232)
-  Valid:   2025-04-06T08:00:00+02:00 → 2025-04-07T08:00:00+02:00
-  Danger:  2 — Moderate (above 2200m)
+  Regions: Davos (CH-5123), Schanfigg (CH-5122), St. Moritz (CH-7114), ...
+  Valid:   2026-04-06T06:00:00Z → 2026-04-06T15:00:00Z
+  Danger:  2 — Moderate
+  Danger:  3 — Considerable (later)
   Problems:
-    - wind_slab — N/NE/E above 2200m
+    - persistent_weak_layers — N/NE/E/W/NW above 2200
+    - wet_snow
 ```
 
 ## Quick Start

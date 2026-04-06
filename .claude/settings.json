@@ -271,7 +271,9 @@
       "Bash(grep -oE '\\\\bareas\\\\b.{0,100}' /tmp/mch_main.js)",
       "Bash(grep -oE 'for\\\\\\(.{0,50}shapes.{0,50}\\\\\\)' /tmp/mch_main.js)",
       "Bash(script -q /dev/null ./meteoswiss radar --ascii --width 80 --frames 1)",
-      "Bash(script -q /dev/null ./meteoswiss radar --ascii --width 100 --frames 60)"
+      "Bash(script -q /dev/null ./meteoswiss radar --ascii --width 100 --frames 60)",
+      "Bash(gh run:*)",
+      "Bash(INTEGRATION_TEST=1 go test ./internal/meteoswiss/cmd/ -run \"TestForecastTable|TestCurrentJSON_NoArgs\" -v -timeout 60s)"
     ]
   }
 }

@@ -1,0 +1,37 @@
+app-id: ch.meteoswiss.cli
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.golang
+
+command: meteoswiss
+
+finish-args:
+  - --share=network
+
+build-options:
+  env:
+    GOROOT: /usr/lib/sdk/golang
+
+modules:
+  - name: meteoswisscli
+    buildsystem: simple
+    build-commands:
+      - . /usr/lib/sdk/golang/enable.sh &&
+        MODULE=$(head -1 go.mod | awk '{print $2}') &&
+        VERSION=0.1.0 &&
+        go build -ldflags "-s -w -X '${MODULE}/internal/meteoswiss/cmd.version=${VERSION}'"
+          -o meteoswiss ./cmd/meteoswiss &&
+        go build -ldflags "-s -w -X '${MODULE}/internal/whiterisk/cmd.version=${VERSION}'"
+          -o whiterisk ./cmd/whiterisk &&
+        install -Dm755 meteoswiss /app/bin/meteoswiss &&
+        install -Dm755 whiterisk /app/bin/whiterisk &&
+        ./meteoswiss completion bash > meteoswiss.bash &&
+        ./whiterisk completion bash > whiterisk.bash &&
+        install -Dm644 meteoswiss.bash /app/share/bash-completion/completions/meteoswiss &&
+        install -Dm644 whiterisk.bash /app/share/bash-completion/completions/whiterisk
+    sources:
+      - type: git
+        url: https://github.com/salam/meteoswisscli.git
+        tag: v0.1.0

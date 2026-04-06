@@ -80,6 +80,58 @@ brews:
       system "#{bin}/meteoswiss", "--version"
       system "#{bin}/whiterisk", "--version"
 
+aurs:
+  - ids:
+      - meteoswiss
+      - whiterisk
+    homepage: https://github.com/salam/meteoswisscli
+    description: CLI tools for Swiss weather and avalanche data from MeteoSwiss and SLF/WSL
+    maintainers:
+      - 'salam <salam@users.noreply.github.com>'
+    license: MIT
+    private_key: '{{ .Env.AUR_KEY }}'
+    git_url: 'ssh://aur@aur.archlinux.org/meteoswisscli-bin.git'
+    package: |-
+      install -Dm755 meteoswiss "${pkgdir}/usr/bin/meteoswiss"
+      install -Dm755 whiterisk "${pkgdir}/usr/bin/whiterisk"
+      install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+
+      # Shell completions
+      mkdir -p "${pkgdir}/usr/share/bash-completion/completions"
+      mkdir -p "${pkgdir}/usr/share/zsh/site-functions"
+      mkdir -p "${pkgdir}/usr/share/fish/vendor_completions.d"
+      ./meteoswiss completion bash > "${pkgdir}/usr/share/bash-completion/completions/meteoswiss"
+      ./meteoswiss completion zsh > "${pkgdir}/usr/share/zsh/site-functions/_meteoswiss"
+      ./meteoswiss completion fish > "${pkgdir}/usr/share/fish/vendor_completions.d/meteoswiss.fish"
+      ./whiterisk completion bash > "${pkgdir}/usr/share/bash-completion/completions/whiterisk"
+      ./whiterisk completion zsh > "${pkgdir}/usr/share/zsh/site-functions/_whiterisk"
+      ./whiterisk completion fish > "${pkgdir}/usr/share/fish/vendor_completions.d/whiterisk.fish"
+
+snapcrafts:
+  - ids:
+      - meteoswiss
+      - whiterisk
+    name: meteoswisscli
+    summary: CLI tools for Swiss weather and avalanche data
+    description: |
+      Two command-line tools for Swiss weather and avalanche data, written in Go.
+      meteoswiss: forecasts, radar, wind, pollen from MeteoSwiss.
+      whiterisk: avalanche bulletins, snow data from SLF/WSL.
+    grade: stable
+    confinement: strict
+    license: MIT
+    apps:
+      meteoswiss:
+        command: meteoswiss
+        plugs:
+          - network
+          - home
+      whiterisk:
+        command: whiterisk
+        plugs:
+          - network
+          - home
+
 release:
   github:
     owner: salam

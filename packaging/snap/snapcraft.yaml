@@ -1,0 +1,62 @@
+name: meteoswisscli
+base: core24
+version: '0.1.0'
+summary: CLI tools for Swiss weather and avalanche data
+description: |
+  Two command-line tools for Swiss weather and avalanche data, written in Go.
+
+  - meteoswiss: Weather forecasts, current conditions, radar, wind, pollen,
+    and more from MeteoSwiss.
+  - whiterisk: Avalanche bulletins, snow measurements, and snow maps
+    from SLF/WSL and WhiteRisk.
+
+  All data comes from public, unauthenticated APIs and Swiss open data.
+
+grade: stable
+confinement: strict
+
+parts:
+  meteoswisscli:
+    plugin: go
+    source: .
+    source-type: git
+    build-snaps:
+      - go/1.25/stable
+    override-build: |
+      MODULE=$(head -1 go.mod | awk '{print $2}')
+      VERSION=${SNAPCRAFT_PROJECT_VERSION}
+
+      go build -ldflags "-s -w -X '${MODULE}/internal/meteoswiss/cmd.version=${VERSION}'" \
+        -o "${SNAPCRAFT_PART_INSTALL}/bin/meteoswiss" ./cmd/meteoswiss
+      go build -ldflags "-s -w -X '${MODULE}/internal/whiterisk/cmd.version=${VERSION}'" \
+        -o "${SNAPCRAFT_PART_INSTALL}/bin/whiterisk" ./cmd/whiterisk
+
+      # Generate shell completions
+      mkdir -p "${SNAPCRAFT_PART_INSTALL}/share/bash-completion/completions"
+      mkdir -p "${SNAPCRAFT_PART_INSTALL}/share/zsh/site-functions"
+      mkdir -p "${SNAPCRAFT_PART_INSTALL}/share/fish/vendor_completions.d"
+
+      "${SNAPCRAFT_PART_INSTALL}/bin/meteoswiss" completion bash > \
+        "${SNAPCRAFT_PART_INSTALL}/share/bash-completion/completions/meteoswiss"
+      "${SNAPCRAFT_PART_INSTALL}/bin/meteoswiss" completion zsh > \
+        "${SNAPCRAFT_PART_INSTALL}/share/zsh/site-functions/_meteoswiss"
+      "${SNAPCRAFT_PART_INSTALL}/bin/meteoswiss" completion fish > \
+        "${SNAPCRAFT_PART_INSTALL}/share/fish/vendor_completions.d/meteoswiss.fish"
+      "${SNAPCRAFT_PART_INSTALL}/bin/whiterisk" completion bash > \
+        "${SNAPCRAFT_PART_INSTALL}/share/bash-completion/completions/whiterisk"
+      "${SNAPCRAFT_PART_INSTALL}/bin/whiterisk" completion zsh > \
+        "${SNAPCRAFT_PART_INSTALL}/share/zsh/site-functions/_whiterisk"
+      "${SNAPCRAFT_PART_INSTALL}/bin/whiterisk" completion fish > \
+        "${SNAPCRAFT_PART_INSTALL}/share/fish/vendor_completions.d/whiterisk.fish"
+
+apps:
+  meteoswiss:
+    command: bin/meteoswiss
+    plugs:
+      - network
+      - home
+  whiterisk:
+    command: bin/whiterisk
+    plugs:
+      - network
+      - home
