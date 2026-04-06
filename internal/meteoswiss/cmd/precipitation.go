@@ -19,14 +19,23 @@ func init() {
 var precipitationCmd = &cobra.Command{
 	Use:   "precipitation <location>",
 	Short: "Precipitation probability",
-	Args:  cobra.ExactArgs(1),
+	Example: `  meteoswiss precipitation Basel`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		resolved, err := geo.ResolvePLZ(args[0])
+		location, err := getLocationArg(args, "meteoswiss")
 		if err != nil {
 			output.Error(err.Error())
 			os.Exit(1)
 		}
-		client := api.NewClient(Lang)
+
+		resolved, err := geo.ResolvePLZ(location)
+		if err != nil {
+			output.Error(err.Error())
+			os.Exit(1)
+		}
+
+		printCoordinateResolution(location, resolved)
+		client := api.NewClientWithCache(Lang, ResponseCache)
 		detail, err := client.GetForecast(resolved.PLZ)
 		if err != nil {
 			output.Error(err.Error())

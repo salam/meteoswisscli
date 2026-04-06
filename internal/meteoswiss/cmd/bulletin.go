@@ -34,6 +34,8 @@ Regions:
 Types:
   Default: today's weather report (updated ~05:00, ~12:00)
   --outlook: extended forecast outlook (updated ~22:00)`,
+	Example: `  meteoswiss bulletin --region south
+  meteoswiss bulletin --outlook`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		region := api.BulletinRegion(bulletinRegion)
 		switch region {
@@ -48,7 +50,7 @@ Types:
 			bulletinType = api.BulletinOutlook
 		}
 
-		client := api.NewClient(Lang)
+		client := api.NewClientWithCache(Lang, ResponseCache)
 		bulletin, err := client.GetBulletinText(bulletinType, region)
 		if err != nil {
 			output.Error(err.Error())

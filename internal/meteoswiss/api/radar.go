@@ -26,6 +26,15 @@ var radarBrowserURLs = map[RadarType]string{
 
 func GetRadarBrowserURL(rt RadarType) string { return radarBrowserURLs[rt] }
 
+// Satellite/cloud image URLs (latest snapshots from MeteoSwiss open data).
+var satelliteImageURLs = map[RadarType]string{
+	RadarSatellite: "https://www.meteoschweiz.admin.ch/static/resources/satellite/satellite-hrv-latest.png",
+	RadarCloud:     "https://www.meteoschweiz.admin.ch/static/resources/satellite/satellite-infrared-latest.png",
+}
+
+// GetSatelliteImageURL returns the latest satellite/cloud image URL for the given type.
+func GetSatelliteImageURL(rt RadarType) string { return satelliteImageURLs[rt] }
+
 // RadarFrame represents a single radar precipitation snapshot.
 type RadarFrame struct {
 	Timestamp string     `json:"timestamp"`

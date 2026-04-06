@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/salam/swissmeteocli/internal/meteoswiss/api"
 	"github.com/salam/swissmeteocli/pkg/geo"
@@ -27,6 +28,8 @@ var windCmd = &cobra.Command{
 Accepts a station code, place name, PLZ, or coordinates.
 Without arguments, shows all stations with wind data.
 Use --browser to open the wind animation in the browser.`,
+	Example: `  meteoswiss wind "Arosa GR"
+  meteoswiss wind --browser`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if windBrowser {
 			url := "https://www.meteoswiss.admin.ch/services-and-publications/applications/wind.html#tab=animation-wind-10m"
@@ -39,7 +42,7 @@ Use --browser to open the wind animation in the browser.`,
 			return nil
 		}
 
-		client := api.NewClient(Lang)
+		client := api.NewClientWithCache(Lang, ResponseCache)
 		measurements, err := client.GetCurrentMeasurements("")
 		if err != nil {
 			output.Error(err.Error())
@@ -48,8 +51,16 @@ Use --browser to open the wind animation in the browser.`,
 
 		// Filter to stations with wind data
 		var windData []api.StationMeasurement
-		if len(args) > 0 {
-			resolved, resolveErr := geo.ResolveStation(args[0], 10)
+		locationInput, _ := getLocationArg(args, "meteoswiss")
+		if locationInput != "" {
+			// Show coordinate resolution if input looks like coordinates
+			if strings.Contains(locationInput, ",") {
+				if plzResolved, err := geo.ResolvePLZ(locationInput); err == nil {
+					printCoordinateResolution(locationInput, plzResolved)
+				}
+			}
+
+			resolved, resolveErr := geo.ResolveStation(locationInput, 10)
 			if resolveErr != nil {
 				output.Error(resolveErr.Error())
 				os.Exit(1)
@@ -77,8 +88,8 @@ Use --browser to open the wind animation in the browser.`,
 		}
 
 		title := i18n.T("WIND")
-		if len(args) > 0 {
-			title += " — " + args[0]
+		if locationInput != "" {
+			title += " — " + locationInput
 		}
 		output.Section(title)
 		headers := []string{i18n.T("STATION"), i18n.T("NAME"), i18n.T("WIND"), i18n.T("GUSTS"), i18n.T("DIR")}

@@ -14,11 +14,14 @@ func init() {
 	favoritesCmd.AddCommand(favoritesAddCmd)
 	favoritesCmd.AddCommand(favoritesRemoveCmd)
 	favoritesCmd.AddCommand(favoritesListCmd)
+	favoritesCmd.AddCommand(favoritesDefaultCmd)
 }
 
 var favoritesCmd = &cobra.Command{
 	Use:   "favorites",
 	Short: "Manage saved locations and stations",
+	Example: `  whiterisk favorites list
+  whiterisk favorites add Davos 7231`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return favoritesListCmd.RunE(cmd, args)
 	},
@@ -75,6 +78,41 @@ var favoritesAddCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		fmt.Printf("Added %q to favorites.\n", name)
+		return nil
+	},
+}
+
+var favoritesDefaultCmd = &cobra.Command{
+	Use:   "default [location]",
+	Short: "Set or show the default location",
+	Long: `Set or show the default location used when no location argument is given.
+
+Without arguments, shows the current default location.
+With an argument, sets the default location (place name, PLZ, or coordinates).`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.LoadDefault("whiterisk")
+		if err != nil {
+			output.Error(err.Error())
+			os.Exit(1)
+		}
+
+		if len(args) == 0 {
+			if cfg.DefaultLocation == "" {
+				fmt.Println("No default location set. Use `whiterisk favorites default <location>` to set one.")
+			} else {
+				fmt.Printf("Default location: %s\n", cfg.DefaultLocation)
+			}
+			return nil
+		}
+
+		cfg.DefaultLocation = args[0]
+		if err := cfg.Save(); err != nil {
+			output.Error(err.Error())
+			os.Exit(1)
+		}
+
+		fmt.Printf("Default location set to %q.\n", args[0])
 		return nil
 	},
 }

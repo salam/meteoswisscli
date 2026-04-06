@@ -1,0 +1,88 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: meteoswiss
+    main: ./cmd/meteoswiss
+    binary: meteoswiss
+    ldflags:
+      - -s -w
+      - -X '{{ .ModulePath }}/internal/meteoswiss/cmd.version={{ .Version }}'
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+  - id: whiterisk
+    main: ./cmd/whiterisk
+    binary: whiterisk
+    ldflags:
+      - -s -w
+      - -X '{{ .ModulePath }}/internal/whiterisk/cmd.version={{ .Version }}'
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: default
+    formats: ['tar.gz']
+    format_overrides:
+      - goos: windows
+        formats: ['zip']
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+
+brews:
+  - ids:
+      - meteoswiss
+      - whiterisk
+    repository:
+      owner: salam
+      name: homebrew-tap
+    directory: Formula
+    homepage: https://github.com/salam/meteoswisscli
+    description: CLI tools for Swiss weather and avalanche data
+    license: MIT
+    install: |
+      bin.install "meteoswiss"
+      bin.install "whiterisk"
+    test: |
+      system "#{bin}/meteoswiss", "--version"
+      system "#{bin}/whiterisk", "--version"
+
+release:
+  github:
+    owner: salam
+    name: meteoswisscli
+  draft: false
+  prerelease: auto

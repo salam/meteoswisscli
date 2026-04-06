@@ -44,6 +44,8 @@ Default: opens in browser. Use --ascii to render precipitation in terminal.
 Time series: use --frames N to show the last N radar snapshots (10-min intervals).
 Use --interactive to scroll through frames with arrow keys.
 Use --list to see available timestamps.`,
+	Example: `  meteoswiss radar rain --ascii
+  meteoswiss radar --interactive --frames 24`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		radarType := api.RadarRain
@@ -61,9 +63,9 @@ Use --list to see available timestamps.`,
 			}
 		}
 
-		// ASCII and list modes only work for rain (HDF5 data available)
-		if (radarASCII || radarInteractive || radarList || radarSave != "") && radarType != api.RadarRain {
-			output.Error("ASCII/save/list mode only available for rain radar (HDF5 open data)")
+		// Interactive and list modes only work for rain (HDF5 frame data)
+		if (radarInteractive || radarList) && radarType != api.RadarRain {
+			output.Error("Interactive/list mode only available for rain radar (HDF5 open data)")
 			fmt.Fprintf(os.Stderr, "Opening %s in browser instead...\n", radarType)
 			return output.OpenBrowser(api.GetRadarBrowserURL(radarType))
 		}
@@ -76,8 +78,16 @@ Use --list to see available timestamps.`,
 			return renderRadarInteractive()
 		}
 
+		if radarASCII && radarType != api.RadarRain {
+			return renderSatelliteASCII(radarType)
+		}
+
 		if radarASCII {
 			return renderRadarASCII()
+		}
+
+		if radarSave != "" && radarType != api.RadarRain {
+			return saveSatelliteImage(radarType)
 		}
 
 		if radarSave != "" {
@@ -105,7 +115,7 @@ Use --list to see available timestamps.`,
 }
 
 func listRadarFrames() error {
-	client := api.NewClient(Lang)
+	client := api.NewClientWithCache(Lang, ResponseCache)
 	frames, err := client.ListRadarFrames(24) // last 24 frames = ~4 hours
 	if err != nil {
 		output.Error(err.Error())
@@ -126,7 +136,7 @@ func listRadarFrames() error {
 }
 
 func renderRadarASCII() error {
-	client := api.NewClient(Lang)
+	client := api.NewClientWithCache(Lang, ResponseCache)
 	frames, err := client.ListRadarFrames(radarFrames)
 	if err != nil {
 		output.Error(err.Error())
@@ -182,7 +192,7 @@ func renderRadarInteractive() error {
 		nFrames = 12 // default: 2 hours of 10-min intervals
 	}
 
-	client := api.NewClient(Lang)
+	client := api.NewClientWithCache(Lang, ResponseCache)
 	frames, err := client.ListRadarFrames(nFrames)
 	if err != nil {
 		output.Error(err.Error())
@@ -233,8 +243,52 @@ func renderRadarInteractive() error {
 	return output.InteractiveRadar(iFrames, radarWidth, output.NoColor, !radarNoBorder, !radarNoLakes)
 }
 
+func renderSatelliteASCII(radarType api.RadarType) error {
+	imageURL := api.GetSatelliteImageURL(radarType)
+	if imageURL == "" {
+		return fmt.Errorf("no image URL for type %s", radarType)
+	}
+
+	typeName := "Satellite"
+	if radarType == api.RadarCloud {
+		typeName = "Cloud"
+	}
+
+	output.Section(fmt.Sprintf("%s Imagery", typeName))
+	if err := output.ASCIIMap(imageURL, radarWidth); err != nil {
+		return fmt.Errorf("render %s image: %w", typeName, err)
+	}
+	fmt.Printf("\n%s\n", source.MeteoSwiss)
+	return nil
+}
+
+func saveSatelliteImage(radarType api.RadarType) error {
+	imageURL := api.GetSatelliteImageURL(radarType)
+	if imageURL == "" {
+		return fmt.Errorf("no image URL for type %s", radarType)
+	}
+
+	path := radarSave
+	if filepath.Ext(path) == "" {
+		path += ".png"
+	}
+
+	typeName := "satellite"
+	if radarType == api.RadarCloud {
+		typeName = "cloud"
+	}
+
+	fmt.Printf("Saving %s image to %s...\n", typeName, path)
+	if err := output.SaveImage(imageURL, path); err != nil {
+		return fmt.Errorf("save %s image: %w", typeName, err)
+	}
+	fmt.Printf("Saved to %s\n", path)
+	fmt.Printf("\n%s\n", source.MeteoSwiss)
+	return nil
+}
+
 func saveRadarFile() error {
-	client := api.NewClient(Lang)
+	client := api.NewClientWithCache(Lang, ResponseCache)
 	frames, err := client.ListRadarFrames(1)
 	if err != nil {
 		output.Error(err.Error())

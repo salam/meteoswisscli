@@ -30,6 +30,8 @@ var stationsCmd = &cobra.Command{
 	Use:   "stations",
 	Short: "List weather measurement stations",
 	Long:  "List MeteoSwiss automatic weather stations. Use --near to find stations close to a location.",
+	Example: `  meteoswiss stations --near Bern
+  meteoswiss stations --search ZRH`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// --near mode: use embedded station data with coordinates
 		if stationsNear != "" {
@@ -37,7 +39,7 @@ var stationsCmd = &cobra.Command{
 		}
 
 		// Default: show from live measurements
-		client := api.NewClient(Lang)
+		client := api.NewClientWithCache(Lang, ResponseCache)
 		measurements, err := client.GetCurrentMeasurements("")
 		if err != nil {
 			output.Error(err.Error())

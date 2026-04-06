@@ -23,8 +23,10 @@ var bulletinCmd = &cobra.Command{
 	Use:   "bulletin [location]",
 	Short: "Avalanche bulletin",
 	Long:  "Show avalanche danger ratings. Filter by region name, region ID, or lat,lon.",
+	Example: `  whiterisk bulletin Davos
+  whiterisk bulletin --pdf`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client := api.NewClient(Lang)
+		client := api.NewClientWithCache(Lang, ResponseCache)
 
 		if bulletinPDF {
 			url := client.GetBulletinPDFURL()

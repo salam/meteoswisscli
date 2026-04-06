@@ -15,8 +15,9 @@ func init() {
 }
 
 var profilesCmd = &cobra.Command{
-	Use:   "profiles",
-	Short: "Snow profiles",
+	Use:     "profiles",
+	Short:   "Snow profiles",
+	Example: `  whiterisk profiles`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !output.IsInteractive() {
 			output.JSON(map[string]string{"url": profilesURL, "source": source.SLF})

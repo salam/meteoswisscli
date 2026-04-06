@@ -15,8 +15,9 @@ func init() {
 }
 
 var hazardsCmd = &cobra.Command{
-	Use:   "hazards",
-	Short: "Natural hazard warnings",
+	Use:     "hazards",
+	Short:   "Natural hazard warnings",
+	Example: `  meteoswiss hazards`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !output.IsInteractive() {
 			output.JSON(map[string]string{"url": hazardsURL, "source": source.MeteoSwiss})

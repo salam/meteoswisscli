@@ -7,6 +7,110 @@ import (
 	"testing"
 )
 
+func TestCurrentWeather_TimeFormatted(t *testing.T) {
+	cw := CurrentWeather{
+		Time:        1712332800000, // 2024-04-05 16:00 UTC
+		Temperature: 18.5,
+	}
+	formatted := cw.TimeFormatted()
+	if formatted == "" {
+		t.Error("TimeFormatted() should not be empty")
+	}
+	// Should contain a date pattern
+	if len(formatted) < 10 {
+		t.Errorf("TimeFormatted() = %q, expected date-time string", formatted)
+	}
+}
+
+func TestCurrentWeather_TimeFormatted_Zero(t *testing.T) {
+	cw := CurrentWeather{Time: 0}
+	formatted := cw.TimeFormatted()
+	if formatted == "" {
+		t.Error("TimeFormatted() should not be empty even for zero time")
+	}
+}
+
+func TestWarnTypeName_Known(t *testing.T) {
+	tests := []struct {
+		input int
+		want  string
+	}{
+		{0, "Wind"},
+		{1, "Thunderstorm"},
+		{2, "Rain"},
+		{3, "Snow"},
+		{4, "Slippery roads"},
+		{5, "Frost"},
+		{6, "Heat wave"},
+		{7, "Forest fire"},
+		{8, "Avalanche"},
+		{9, "Earthquake"},
+		{10, "Flood"},
+	}
+	for _, tt := range tests {
+		got := WarnTypeName(tt.input)
+		if got != tt.want {
+			t.Errorf("WarnTypeName(%d) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestWarnTypeName_Unknown(t *testing.T) {
+	got := WarnTypeName(99)
+	if got != "Type 99" {
+		t.Errorf("WarnTypeName(99) = %q, want %q", got, "Type 99")
+	}
+}
+
+func TestWarning_ValidFromFormatted(t *testing.T) {
+	w := Warning{ValidFrom: 1712332800000}
+	f := w.ValidFromFormatted()
+	if f == "" || len(f) < 10 {
+		t.Errorf("ValidFromFormatted() = %q, expected date-time string", f)
+	}
+}
+
+func TestWarning_ValidToFormatted(t *testing.T) {
+	w := Warning{ValidTo: 1712419200000}
+	f := w.ValidToFormatted()
+	if f == "" || len(f) < 10 {
+		t.Errorf("ValidToFormatted() = %q, expected date-time string", f)
+	}
+}
+
+func TestIconDescription_Known(t *testing.T) {
+	tests := []struct {
+		id   int
+		want string
+	}{
+		{1, "Sunny"},
+		{2, "Mostly sunny"},
+		{7, "Rain"},
+		{101, "Clear night"},
+		{109, "Thunderstorm night"},
+	}
+	for _, tt := range tests {
+		got := IconDescription(tt.id)
+		if got != tt.want {
+			t.Errorf("IconDescription(%d) = %q, want %q", tt.id, got, tt.want)
+		}
+	}
+}
+
+func TestIconDescription_Unknown(t *testing.T) {
+	got := IconDescription(999)
+	if got != "Icon 999" {
+		t.Errorf("IconDescription(999) = %q, want %q", got, "Icon 999")
+	}
+}
+
+func TestWeatherIconURL(t *testing.T) {
+	url := WeatherIconURL(1)
+	if url != "https://www.meteoschweiz.admin.ch/static/resources/weather-icons/weather-symbol/1.svg" {
+		t.Errorf("WeatherIconURL(1) = %q", url)
+	}
+}
+
 func TestGetForecast(t *testing.T) {
 	response := PlzDetail{
 		CurrentWeather: CurrentWeather{

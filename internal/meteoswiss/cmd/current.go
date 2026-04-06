@@ -27,19 +27,27 @@ var currentCmd = &cobra.Command{
 
 Accepts a station code (e.g. SMA), place name (e.g. Zürich), PLZ (e.g. 8001),
 or coordinates (e.g. 47.37,8.55). Place names and coordinates show the nearest stations.`,
+	Example: `  meteoswiss current Bern
+  meteoswiss current SMA`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client := api.NewClient(Lang)
+		client := api.NewClientWithCache(Lang, ResponseCache)
 		measurements, err := client.GetCurrentMeasurements("")
 		if err != nil {
 			output.Error(err.Error())
 			os.Exit(1)
 		}
 
-		if len(args) == 0 {
+		input, _ := getLocationArg(args, "meteoswiss")
+		if input == "" {
 			return showMeasurements("", measurements)
 		}
 
-		input := args[0]
+		// Show coordinate resolution if input looks like coordinates
+		if strings.Contains(input, ",") {
+			if plzResolved, err := geo.ResolvePLZ(input); err == nil {
+				printCoordinateResolution(input, plzResolved)
+			}
+		}
 
 		// Try resolving as station code, place name, or coordinates
 		resolved, resolveErr := geo.ResolveStation(input, currentLimit)

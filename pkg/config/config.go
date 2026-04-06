@@ -8,9 +8,10 @@ import (
 )
 
 type Config struct {
-	Lang      string     `json:"lang,omitempty"`
-	Favorites []Favorite `json:"favorites,omitempty"`
-	path      string
+	Lang            string     `json:"lang,omitempty"`
+	DefaultLocation string     `json:"default_location,omitempty"`
+	Favorites       []Favorite `json:"favorites,omitempty"`
+	path            string
 }
 
 type Favorite struct {

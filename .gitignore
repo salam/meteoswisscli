@@ -4,3 +4,5 @@
 dist/
 *.exe
 .DS_Store
+.claudine/
+testbin_*

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/salam/swissmeteocli/pkg/cache"
 )
 
 const (
@@ -17,6 +19,7 @@ type Client struct {
 	bulletinBase    string
 	measurementBase string
 	lang            string
+	cache           *cache.Cache
 }
 
 func NewClient(lang string) *Client {
@@ -25,6 +28,16 @@ func NewClient(lang string) *Client {
 		bulletinBase:    bulletinBaseURL,
 		measurementBase: measurementBaseURL,
 		lang:            lang,
+	}
+}
+
+func NewClientWithCache(lang string, c *cache.Cache) *Client {
+	return &Client{
+		http:            &http.Client{},
+		bulletinBase:    bulletinBaseURL,
+		measurementBase: measurementBaseURL,
+		lang:            lang,
+		cache:           c,
 	}
 }
 
@@ -38,6 +51,15 @@ func NewClientWithBase(baseURL, lang string) *Client {
 }
 
 func (c *Client) DoJSON(method, url string, result any) error {
+	cacheKey := method + " " + url
+
+	// Check cache for GET requests
+	if c.cache != nil && method == "GET" {
+		if data, ok := c.cache.Get(cacheKey); ok && result != nil {
+			return json.Unmarshal(data, result)
+		}
+	}
+
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
@@ -56,8 +78,18 @@ func (c *Client) DoJSON(method, url string, result any) error {
 		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
 	}
 
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
+
+	// Cache successful GET responses
+	if c.cache != nil && method == "GET" {
+		c.cache.Set(cacheKey, respBody)
+	}
+
 	if result != nil {
-		return json.NewDecoder(resp.Body).Decode(result)
+		return json.Unmarshal(respBody, result)
 	}
 	return nil
 }

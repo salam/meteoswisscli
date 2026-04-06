@@ -15,8 +15,9 @@ func init() {
 }
 
 var avalanchesCmd = &cobra.Command{
-	Use:   "avalanches",
-	Short: "Current reported avalanches",
+	Use:     "avalanches",
+	Short:   "Current reported avalanches",
+	Example: `  whiterisk avalanches`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !output.IsInteractive() {
 			output.JSON(map[string]string{"url": avalanchesURL, "source": source.SLF})

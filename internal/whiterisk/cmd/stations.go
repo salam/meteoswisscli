@@ -34,8 +34,10 @@ var stationsCmd = &cobra.Command{
 	Use:   "stations",
 	Short: "List measurement stations",
 	Long:  "List IMIS or study plot stations. Use --near to find stations close to a location.",
+	Example: `  whiterisk stations --near Davos
+  whiterisk stations --type study-plot`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client := api.NewClient(Lang)
+		client := api.NewClientWithCache(Lang, ResponseCache)
 		if stationsType == "study-plot" {
 			return listStudyPlotStations(client)
 		}

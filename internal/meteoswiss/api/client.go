@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+
+	"github.com/salam/swissmeteocli/pkg/cache"
 )
 
 const defaultBaseURL = "https://app-prod-ws.meteoswiss-app.ch"
@@ -15,6 +18,7 @@ type Client struct {
 	http    *http.Client
 	baseURL string
 	lang    string
+	cache   *cache.Cache
 }
 
 func NewClient(lang string) *Client {
@@ -25,7 +29,26 @@ func NewClient(lang string) *Client {
 	}
 }
 
+func NewClientWithCache(lang string, c *cache.Cache) *Client {
+	return &Client{
+		http:    &http.Client{},
+		baseURL: defaultBaseURL,
+		lang:    lang,
+		cache:   c,
+	}
+}
+
 func (c *Client) DoJSON(method, path string, body any, result any) error {
+	url := c.baseURL + path
+	cacheKey := method + " " + url
+
+	// Check cache for GET requests without body
+	if c.cache != nil && method == "GET" && body == nil {
+		if data, ok := c.cache.Get(cacheKey); ok && result != nil {
+			return json.Unmarshal(data, result)
+		}
+	}
+
 	var reqBody io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -35,7 +58,7 @@ func (c *Client) DoJSON(method, path string, body any, result any) error {
 		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, c.baseURL+path, reqBody)
+	req, err := http.NewRequest(method, url, reqBody)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
@@ -55,13 +78,33 @@ func (c *Client) DoJSON(method, path string, body any, result any) error {
 		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
+
+	// Cache successful GET responses
+	if c.cache != nil && method == "GET" && body == nil {
+		c.cache.Set(cacheKey, respBody)
+	}
+
 	if result != nil {
-		return json.NewDecoder(resp.Body).Decode(result)
+		return json.Unmarshal(respBody, result)
 	}
 	return nil
 }
 
 func (c *Client) DoRaw(method, url string) ([]byte, error) {
+	cacheKey := method + " " + url
+
+	// Cache DoRaw for non-HDF5 requests (skip large binary files)
+	canCache := c.cache != nil && method == "GET" && !strings.HasSuffix(url, ".h5")
+	if canCache {
+		if data, ok := c.cache.Get(cacheKey); ok {
+			return data, nil
+		}
+	}
+
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -78,5 +121,14 @@ func (c *Client) DoRaw(method, url string) ([]byte, error) {
 		return nil, fmt.Errorf("API error %d", resp.StatusCode)
 	}
 
-	return io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+
+	if canCache {
+		c.cache.Set(cacheKey, data)
+	}
+
+	return data, nil
 }

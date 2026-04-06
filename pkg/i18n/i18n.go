@@ -207,6 +207,48 @@ var translations = map[string]map[string]string{
 		"it": "EQUIV ACQUA",
 		"en": "WATER EQ",
 	},
+	"Alder": {
+		"de": "Erle",
+		"fr": "Aulne",
+		"it": "Ontano",
+		"en": "Alder",
+	},
+	"Birch": {
+		"de": "Birke",
+		"fr": "Bouleau",
+		"it": "Betulla",
+		"en": "Birch",
+	},
+	"Hazel": {
+		"de": "Hasel",
+		"fr": "Noisetier",
+		"it": "Nocciolo",
+		"en": "Hazel",
+	},
+	"Beech": {
+		"de": "Buche",
+		"fr": "Hêtre",
+		"it": "Faggio",
+		"en": "Beech",
+	},
+	"Ash": {
+		"de": "Esche",
+		"fr": "Frêne",
+		"it": "Frassino",
+		"en": "Ash",
+	},
+	"Oak": {
+		"de": "Eiche",
+		"fr": "Chêne",
+		"it": "Quercia",
+		"en": "Oak",
+	},
+	"Grasses": {
+		"de": "Gräser",
+		"fr": "Graminées",
+		"it": "Graminacee",
+		"en": "Grasses",
+	},
 }
 
 // T translates a string to the current language.

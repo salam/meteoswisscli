@@ -32,6 +32,8 @@ func init() {
 var snowCmd = &cobra.Command{
 	Use:   "snow",
 	Short: "Snow maps and data",
+	Example: `  whiterisk snow depth --ascii
+  whiterisk snow new --save newsnow.png`,
 }
 
 var snowNewCmd = &cobra.Command{

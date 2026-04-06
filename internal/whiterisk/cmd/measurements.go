@@ -26,10 +26,12 @@ func init() {
 var measurementsCmd = &cobra.Command{
 	Use:   "measurements [station]",
 	Short: "Snow and weather measurements",
-	Args:  cobra.ExactArgs(1),
+	Example: `  whiterisk measurements DAV2 --period 7
+  whiterisk measurements *5WJ --type study-plot`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		station := strings.ToUpper(args[0])
-		client := api.NewClient(Lang)
+		client := api.NewClientWithCache(Lang, ResponseCache)
 		if measurementType == "study-plot" {
 			return showStudyPlotMeasurements(client, station)
 		}

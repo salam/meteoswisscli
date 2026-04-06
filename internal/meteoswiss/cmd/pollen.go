@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 	"strings"
+	"sync"
 
 	"github.com/salam/swissmeteocli/internal/meteoswiss/api"
 	"github.com/salam/swissmeteocli/pkg/geo"
@@ -32,16 +34,26 @@ Without arguments, shows the latest data from all stations.
 Stations: Bern, Basel, Buchs SG, La Chaux-de-Fonds, Davos, Genève,
 Jungfraujoch, Locarno, Lausanne, Lugano, Luzern, Münsterlingen,
 Neuchâtel, Payerne, Sion, Zürich`,
+	Example: `  meteoswiss pollen Zürich
+  meteoswiss pollen PZH --days 7`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client := api.NewClient(Lang)
+		client := api.NewClientWithCache(Lang, ResponseCache)
 
-		if len(args) == 0 {
+		locationInput, _ := getLocationArg(args, "meteoswiss")
+		if locationInput == "" {
 			return showAllPollenStationsLatest(client)
 		}
 
-		station := resolvePollenStation(args[0])
+		// Show coordinate resolution if input looks like coordinates
+		if strings.Contains(locationInput, ",") {
+			if plzResolved, err := geo.ResolvePLZ(locationInput); err == nil {
+				printCoordinateResolution(locationInput, plzResolved)
+			}
+		}
+
+		station := resolvePollenStation(locationInput)
 		if station == nil {
-			output.Error(fmt.Sprintf("pollen station not found for %q. Use a station code (PZH) or city name (Zürich)", args[0]))
+			output.Error(fmt.Sprintf("pollen station not found for %q. Use a station code (PZH) or city name (Zürich)", locationInput))
 			os.Exit(1)
 		}
 
@@ -67,7 +79,7 @@ Neuchâtel, Payerne, Sion, Zürich`,
 		}
 
 		output.Section(fmt.Sprintf("Pollen — %s (%s)", station.Name, station.Code))
-		headers := []string{i18n.T("DATE"), "Alder", "Birch", "Hazel", "Beech", "Ash", "Oak", "Grasses"}
+		headers := []string{i18n.T("DATE"), i18n.T("Alder"), i18n.T("Birch"), i18n.T("Hazel"), i18n.T("Beech"), i18n.T("Ash"), i18n.T("Oak"), i18n.T("Grasses")}
 		var rows [][]string
 		for _, m := range measurements {
 			rows = append(rows, []string{
@@ -150,15 +162,39 @@ func showAllPollenStationsLatest(client *api.Client) error {
 		api.PollenMeasurement
 	}
 
-	var entries []latestEntry
-	for _, s := range api.PollenStations {
-		measurements, err := client.GetPollenData(s.Code)
-		if err != nil || len(measurements) == 0 {
-			continue
-		}
-		last := measurements[len(measurements)-1]
-		entries = append(entries, latestEntry{Station: s.Code, Name: s.Name, PollenMeasurement: last})
+	type result struct {
+		entry latestEntry
+		ok    bool
 	}
+
+	results := make([]result, len(api.PollenStations))
+	var wg sync.WaitGroup
+	wg.Add(len(api.PollenStations))
+
+	for i, s := range api.PollenStations {
+		go func(idx int, station api.PollenStation) {
+			defer wg.Done()
+			measurements, err := client.GetPollenData(station.Code)
+			if err != nil || len(measurements) == 0 {
+				return
+			}
+			last := measurements[len(measurements)-1]
+			results[idx] = result{
+				entry: latestEntry{Station: station.Code, Name: station.Name, PollenMeasurement: last},
+				ok:    true,
+			}
+		}(i, s)
+	}
+	wg.Wait()
+
+	var entries []latestEntry
+	for _, r := range results {
+		if r.ok {
+			entries = append(entries, r.entry)
+		}
+	}
+
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Station < entries[j].Station })
 
 	if !output.IsInteractive() {
 		output.JSON(map[string]any{"stations": entries, "source": source.MeteoSwiss})
@@ -166,7 +202,7 @@ func showAllPollenStationsLatest(client *api.Client) error {
 	}
 
 	output.Section("Pollen — All Stations (latest)")
-	headers := []string{i18n.T("STATION"), i18n.T("NAME"), i18n.T("DATE"), "Alder", "Birch", "Hazel", "Ash", "Oak", "Grasses"}
+	headers := []string{i18n.T("STATION"), i18n.T("NAME"), i18n.T("DATE"), i18n.T("Alder"), i18n.T("Birch"), i18n.T("Hazel"), i18n.T("Ash"), i18n.T("Oak"), i18n.T("Grasses")}
 	var rows [][]string
 	for _, e := range entries {
 		rows = append(rows, []string{

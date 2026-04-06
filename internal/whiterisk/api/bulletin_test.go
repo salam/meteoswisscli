@@ -49,10 +49,77 @@ func TestGetBulletin(t *testing.T) {
 }
 
 func TestDangerLevelDisplay(t *testing.T) {
-	if got := DangerLevelDisplay("considerable"); got != "3 — Considerable" {
-		t.Errorf("got %q, want %q", got, "3 — Considerable")
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"low", "1 — Low"},
+		{"moderate", "2 — Moderate"},
+		{"considerable", "3 — Considerable"},
+		{"high", "4 — High"},
+		{"very_high", "5 — Very High"},
+		{"unknown", "unknown"},
+		{"", ""},
 	}
-	if got := DangerLevelDisplay("unknown"); got != "unknown" {
-		t.Errorf("got %q, want %q", got, "unknown")
+	for _, tt := range tests {
+		got := DangerLevelDisplay(tt.input)
+		if got != tt.want {
+			t.Errorf("DangerLevelDisplay(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestElevationRange_LowerBoundStr(t *testing.T) {
+	tests := []struct {
+		name  string
+		elev  ElevationRange
+		want  string
+	}{
+		{"nil lower", ElevationRange{LowerBound: nil}, ""},
+		{"int lower", ElevationRange{LowerBound: 2200}, "2200"},
+		{"float lower", ElevationRange{LowerBound: 2200.0}, "2200"},
+		{"string lower", ElevationRange{LowerBound: "2200"}, "2200"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.elev.LowerBoundStr()
+			if got != tt.want {
+				t.Errorf("LowerBoundStr() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestElevationRange_UpperBoundStr(t *testing.T) {
+	tests := []struct {
+		name  string
+		elev  ElevationRange
+		want  string
+	}{
+		{"nil upper", ElevationRange{UpperBound: nil}, ""},
+		{"int upper", ElevationRange{UpperBound: 2200}, "2200"},
+		{"float upper", ElevationRange{UpperBound: 2200.0}, "2200"},
+		{"string upper", ElevationRange{UpperBound: "3000"}, "3000"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.elev.UpperBoundStr()
+			if got != tt.want {
+				t.Errorf("UpperBoundStr() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidTime(t *testing.T) {
+	vt := ValidTime{
+		StartTime: "2026-04-05T17:00:00Z",
+		EndTime:   "2026-04-06T17:00:00Z",
+	}
+	if vt.StartTime == "" {
+		t.Error("StartTime should not be empty")
+	}
+	if vt.EndTime == "" {
+		t.Error("EndTime should not be empty")
 	}
 }

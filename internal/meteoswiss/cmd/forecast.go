@@ -23,15 +23,25 @@ var forecastCmd = &cobra.Command{
 	Use:   "forecast <location>",
 	Short: "Weather forecast for a location",
 	Long:  "Show weather forecast by PLZ code (e.g. 8001), place name, or lat,lon coordinates.",
-	Args:  cobra.ExactArgs(1),
+	Example: `  meteoswiss forecast Zürich
+  meteoswiss forecast 8001 --week`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		resolved, err := geo.ResolvePLZ(args[0])
+		location, err := getLocationArg(args, "meteoswiss")
 		if err != nil {
 			output.Error(err.Error())
 			os.Exit(1)
 		}
 
-		client := api.NewClient(Lang)
+		resolved, err := geo.ResolvePLZ(location)
+		if err != nil {
+			output.Error(err.Error())
+			os.Exit(1)
+		}
+
+		printCoordinateResolution(location, resolved)
+
+		client := api.NewClientWithCache(Lang, ResponseCache)
 		detail, err := client.GetForecast(resolved.PLZ)
 		if err != nil {
 			output.Error(err.Error())
