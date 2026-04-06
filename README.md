@@ -294,6 +294,18 @@ pkg/source/              Attribution strings
 
 **Dependencies:** `cobra` for CLI framework, `go-native-netcdf` for HDF5 radar data, `x/term` for terminal detection. Everything else is Go stdlib.
 
+## Agent Skill
+
+This repo includes a [SKILL.md](SKILL.md) for AI coding agents (OpenClaw, Claude Code, etc.). It defines commit, file safety, and coordination rules for multi-agent workflows.
+
+Install with OpenClaw:
+
+```bash
+openclaw skills install meteoswisscli-agent-rules
+```
+
+Or manually: clone/symlink this repo into `~/.openclaw/skills/`.
+
 ## License
 
 MIT
