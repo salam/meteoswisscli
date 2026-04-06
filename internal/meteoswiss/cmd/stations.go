@@ -6,23 +6,37 @@ import (
 	"strings"
 
 	"github.com/salam/swissmeteocli/internal/meteoswiss/api"
+	"github.com/salam/swissmeteocli/pkg/geo"
 	"github.com/salam/swissmeteocli/pkg/i18n"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/salam/swissmeteocli/pkg/source"
 	"github.com/spf13/cobra"
 )
 
-var stationsSearch string
+var (
+	stationsSearch string
+	stationsNear   string
+	stationsLimit  int
+)
 
 func init() {
 	rootCmd.AddCommand(stationsCmd)
 	stationsCmd.Flags().StringVar(&stationsSearch, "search", "", "Search stations by code")
+	stationsCmd.Flags().StringVar(&stationsNear, "near", "", "Find stations near a place name, PLZ, or lat,lon")
+	stationsCmd.Flags().IntVar(&stationsLimit, "limit", 10, "Number of nearby stations to show (with --near)")
 }
 
 var stationsCmd = &cobra.Command{
 	Use:   "stations",
 	Short: "List weather measurement stations",
+	Long:  "List MeteoSwiss automatic weather stations. Use --near to find stations close to a location.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// --near mode: use embedded station data with coordinates
+		if stationsNear != "" {
+			return showNearbyMeteoStations()
+		}
+
+		// Default: show from live measurements
 		client := api.NewClient(Lang)
 		measurements, err := client.GetCurrentMeasurements("")
 		if err != nil {
@@ -71,4 +85,51 @@ var stationsCmd = &cobra.Command{
 		fmt.Printf("\n%s\n", source.MeteoSwiss)
 		return nil
 	},
+}
+
+func showNearbyMeteoStations() error {
+	resolved, err := geo.ResolveStation(stationsNear, stationsLimit)
+	if err != nil {
+		output.Error(err.Error())
+		os.Exit(1)
+	}
+
+	label := stationsNear
+	if loc, err := geo.SearchLocation(stationsNear); err == nil {
+		label = fmt.Sprintf("%s %s", loc.Name, loc.Kanton)
+	}
+
+	if !output.IsInteractive() {
+		type result struct {
+			Code      string  `json:"code"`
+			Name      string  `json:"name"`
+			Elevation int     `json:"elevation"`
+			Canton    string  `json:"canton"`
+			Distance  float64 `json:"distance_km"`
+		}
+		results := make([]result, len(resolved))
+		for i, r := range resolved {
+			results[i] = result{
+				Code: r.Station.Code, Name: r.Station.Name,
+				Elevation: r.Station.Elevation, Canton: r.Station.Canton,
+				Distance: float64(int(r.Distance*10)) / 10,
+			}
+		}
+		output.JSON(map[string]any{"near": label, "stations": results, "count": len(results), "source": source.MeteoSwiss})
+		return nil
+	}
+
+	output.Section(fmt.Sprintf("%s near %s (%d)", i18n.T("Stations"), label, len(resolved)))
+	headers := []string{i18n.T("CODE"), i18n.T("NAME"), i18n.T("ELEVATION"), i18n.T("CANTON"), i18n.T("DISTANCE")}
+	var rows [][]string
+	for _, r := range resolved {
+		rows = append(rows, []string{
+			r.Station.Code, r.Station.Name,
+			fmt.Sprintf("%dm", r.Station.Elevation), r.Station.Canton,
+			fmt.Sprintf("%.1f km", r.Distance),
+		})
+	}
+	output.Table(headers, rows)
+	fmt.Printf("\n%s\n", source.MeteoSwiss)
+	return nil
 }
