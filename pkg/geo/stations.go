@@ -53,6 +53,20 @@ func FindNearestStations(lat, lon float64, limit int) ([]StationWithDist, error)
 	return result, nil
 }
 
+// LookupStation returns the station metadata for a given code, or nil if not found.
+func LookupStation(code string) *Station {
+	if err := loadStations(); err != nil {
+		return nil
+	}
+	upper := strings.ToUpper(code)
+	for i := range meteoStations {
+		if strings.ToUpper(meteoStations[i].Code) == upper {
+			return &meteoStations[i]
+		}
+	}
+	return nil
+}
+
 // ResolveStation takes a station code, place name, or lat,lon and returns
 // the nearest station(s). If input is a station code, returns that station.
 func ResolveStation(input string, limit int) ([]StationWithDist, error) {

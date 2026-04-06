@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/salam/swissmeteocli/internal/meteoswiss/api"
+	"github.com/salam/swissmeteocli/pkg/geo"
 	"github.com/salam/swissmeteocli/pkg/i18n"
 	"github.com/salam/swissmeteocli/pkg/output"
 	"github.com/salam/swissmeteocli/pkg/source"
@@ -91,7 +92,6 @@ func fmtPollen(val string) string {
 func resolvePollenStation(input string) *api.PollenStation {
 	input = strings.TrimSpace(input)
 	upper := strings.ToUpper(input)
-	lower := strings.ToLower(input)
 
 	// Exact station code match
 	for i := range api.PollenStations {
@@ -100,21 +100,26 @@ func resolvePollenStation(input string) *api.PollenStation {
 		}
 	}
 
-	// Name match (contains)
-	for i := range api.PollenStations {
-		if strings.Contains(strings.ToLower(api.PollenStations[i].Name), lower) {
-			return &api.PollenStations[i]
+	// Try to resolve location via geo package, then find nearest pollen station
+	resolved, err := geo.ResolvePLZ(input)
+	if err != nil {
+		// Fall back to name match on pollen station names
+		lower := strings.ToLower(input)
+		for i := range api.PollenStations {
+			if strings.Contains(strings.ToLower(api.PollenStations[i].Name), lower) {
+				return &api.PollenStations[i]
+			}
 		}
-	}
-
-	// Try as coordinates → find nearest pollen station
-	var lat, lon float64
-	if la, lo, ok := tryParseCoords(input); ok {
-		lat, lon = la, lo
-	} else {
 		return nil
 	}
 
+	if resolved.Location != nil {
+		return findNearestPollenStation(resolved.Location.Lat, resolved.Location.Lon)
+	}
+	return nil
+}
+
+func findNearestPollenStation(lat, lon float64) *api.PollenStation {
 	var best *api.PollenStation
 	bestDist := math.MaxFloat64
 	for i := range api.PollenStations {
@@ -126,21 +131,6 @@ func resolvePollenStation(input string) *api.PollenStation {
 		}
 	}
 	return best
-}
-
-func tryParseCoords(s string) (float64, float64, bool) {
-	parts := strings.SplitN(s, ",", 2)
-	if len(parts) != 2 {
-		return 0, 0, false
-	}
-	var lat, lon float64
-	if _, err := fmt.Sscanf(strings.TrimSpace(parts[0]), "%f", &lat); err != nil {
-		return 0, 0, false
-	}
-	if _, err := fmt.Sscanf(strings.TrimSpace(parts[1]), "%f", &lon); err != nil {
-		return 0, 0, false
-	}
-	return lat, lon, true
 }
 
 func pollenHaversineDist(lat1, lon1, lat2, lon2 float64) float64 {

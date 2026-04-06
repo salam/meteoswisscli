@@ -76,7 +76,7 @@ var forecastCmd = &cobra.Command{
 		for _, d := range days {
 			rows = append(rows, []string{
 				d.DayDate,
-				fmt.Sprintf("%d", d.IconDay),
+				api.IconDescription(d.IconDay),
 				fmt.Sprintf("%.0f°C", d.TemperatureMin),
 				fmt.Sprintf("%.0f°C", d.TemperatureMax),
 				fmt.Sprintf("%.1f mm", d.Precipitation),
@@ -92,6 +92,18 @@ var forecastCmd = &cobra.Command{
 					text += " — " + w.Links[0].Text
 				}
 				fmt.Printf("  [Level %d] %s (%s — %s)\n", w.Level, text, w.ValidFromFormatted(), w.ValidToFormatted())
+			}
+		}
+
+		// Show icon legend for the icons used in this forecast
+		if output.IsInteractive() {
+			fmt.Println()
+			seen := make(map[int]bool)
+			for _, d := range days {
+				if !seen[d.IconDay] {
+					seen[d.IconDay] = true
+					fmt.Printf("  Icon %d: %s\n         %s\n", d.IconDay, api.IconDescription(d.IconDay), api.WeatherIconURL(d.IconDay))
+				}
 			}
 		}
 

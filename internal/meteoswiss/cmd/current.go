@@ -106,11 +106,16 @@ func showMeasurements(label string, measurements []api.StationMeasurement) error
 		title += " — " + label
 	}
 	output.Section(title)
-	headers := []string{i18n.T("STATION"), i18n.T("TEMP"), i18n.T("HUMIDITY"), i18n.T("WIND"), i18n.T("GUSTS"), i18n.T("PRESSURE"), i18n.T("RAIN")}
+	headers := []string{i18n.T("STATION"), i18n.T("NAME"), i18n.T("TEMP"), i18n.T("HUMIDITY"), i18n.T("WIND"), i18n.T("GUSTS"), i18n.T("PRESSURE"), i18n.T("RAIN")}
 	var rows [][]string
 	for _, m := range measurements {
+		name := ""
+		if s := geo.LookupStation(m.Station); s != nil {
+			name = s.Name
+		}
 		rows = append(rows, []string{
 			m.Station,
+			name,
 			fmtVal(m.Temperature, "°C"),
 			fmtVal(m.Humidity, "%"),
 			fmtVal(m.WindSpeed, " km/h"),

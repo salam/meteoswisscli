@@ -81,11 +81,16 @@ Use --browser to open the wind animation in the browser.`,
 			title += " — " + args[0]
 		}
 		output.Section(title)
-		headers := []string{i18n.T("STATION"), i18n.T("WIND"), i18n.T("GUSTS"), i18n.T("DIR")}
+		headers := []string{i18n.T("STATION"), i18n.T("NAME"), i18n.T("WIND"), i18n.T("GUSTS"), i18n.T("DIR")}
 		var rows [][]string
 		for _, m := range windData {
+			name := ""
+			if s := geo.LookupStation(m.Station); s != nil {
+				name = s.Name
+			}
 			rows = append(rows, []string{
 				m.Station,
+				name,
 				fmtVal(m.WindSpeed, " km/h"),
 				fmtVal(m.GustPeak, " km/h"),
 				fmtVal(m.WindDir, "°"),
