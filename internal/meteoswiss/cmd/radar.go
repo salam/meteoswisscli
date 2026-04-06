@@ -12,20 +12,26 @@ import (
 )
 
 var (
-	radarASCII  bool
-	radarWidth  int
-	radarFrames int
-	radarSave   string
-	radarList   bool
+	radarASCII       bool
+	radarWidth       int
+	radarFrames      int
+	radarSave        string
+	radarList        bool
+	radarInteractive bool
+	radarNoBorder    bool
+	radarNoLakes     bool
 )
 
 func init() {
 	rootCmd.AddCommand(radarCmd)
-	radarCmd.Flags().BoolVar(&radarASCII, "ascii", false, "Render radar as ASCII art (requires python3 + h5py)")
+	radarCmd.Flags().BoolVar(&radarASCII, "ascii", false, "Render radar as ASCII art in terminal")
 	radarCmd.Flags().IntVar(&radarWidth, "width", 120, "ASCII art width in columns")
 	radarCmd.Flags().IntVar(&radarFrames, "frames", 1, "Number of time frames to show (--ascii mode)")
 	radarCmd.Flags().StringVar(&radarSave, "save", "", "Save HDF5 radar file to path")
 	radarCmd.Flags().BoolVar(&radarList, "list", false, "List available radar frames with timestamps")
+	radarCmd.Flags().BoolVar(&radarInteractive, "interactive", false, "Interactive mode: scroll through radar frames with arrow keys")
+	radarCmd.Flags().BoolVar(&radarNoBorder, "no-border", false, "Hide Swiss border outline")
+	radarCmd.Flags().BoolVar(&radarNoLakes, "no-lakes", false, "Hide lake outlines")
 }
 
 var radarCmd = &cobra.Command{
@@ -34,9 +40,9 @@ var radarCmd = &cobra.Command{
 	Long: `View rain radar, cloud radar, or satellite imagery.
 
 Default: opens in browser. Use --ascii to render precipitation in terminal.
-ASCII mode requires python3 and h5py (pip install h5py).
 
 Time series: use --frames N to show the last N radar snapshots (10-min intervals).
+Use --interactive to scroll through frames with arrow keys.
 Use --list to see available timestamps.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -56,7 +62,7 @@ Use --list to see available timestamps.`,
 		}
 
 		// ASCII and list modes only work for rain (HDF5 data available)
-		if (radarASCII || radarList || radarSave != "") && radarType != api.RadarRain {
+		if (radarASCII || radarInteractive || radarList || radarSave != "") && radarType != api.RadarRain {
 			output.Error("ASCII/save/list mode only available for rain radar (HDF5 open data)")
 			fmt.Fprintf(os.Stderr, "Opening %s in browser instead...\n", radarType)
 			return output.OpenBrowser(api.GetRadarBrowserURL(radarType))
@@ -64,6 +70,10 @@ Use --list to see available timestamps.`,
 
 		if radarList {
 			return listRadarFrames()
+		}
+
+		if radarInteractive {
+			return renderRadarInteractive()
 		}
 
 		if radarASCII {
@@ -155,7 +165,7 @@ func renderRadarASCII() error {
 		}
 
 		output.Section(fmt.Sprintf("Precipitation Radar — %s", frame.Timestamp))
-		fmt.Print(output.RenderRadarASCII(grid, radarWidth, output.NoColor))
+		fmt.Print(output.RenderRadarASCII(grid, radarWidth, output.NoColor, !radarNoBorder, !radarNoLakes))
 
 		if i < len(frames)-1 {
 			fmt.Println()
@@ -164,6 +174,63 @@ func renderRadarASCII() error {
 
 	fmt.Printf("\n%s\n", source.MeteoSwiss)
 	return nil
+}
+
+func renderRadarInteractive() error {
+	nFrames := radarFrames
+	if nFrames < 2 {
+		nFrames = 12 // default: 2 hours of 10-min intervals
+	}
+
+	client := api.NewClient(Lang)
+	frames, err := client.ListRadarFrames(nFrames)
+	if err != nil {
+		output.Error(err.Error())
+		os.Exit(1)
+	}
+
+	if len(frames) == 0 {
+		output.Error("no radar frames available")
+		os.Exit(1)
+	}
+
+	var iFrames []output.InteractiveFrame
+	for i, frame := range frames {
+		fmt.Printf("\rFetching radar frame %d/%d (%s)...", i+1, len(frames), frame.Timestamp)
+
+		h5data, err := client.DownloadRadarH5(frame.URL)
+		if err != nil {
+			output.Error(fmt.Sprintf("download frame %s: %s", frame.Timestamp, err))
+			continue
+		}
+
+		tmpFile, err := os.CreateTemp("", "radar-*.h5")
+		if err != nil {
+			output.Error(fmt.Sprintf("create temp file: %s", err))
+			continue
+		}
+		tmpFile.Write(h5data)
+		tmpFile.Close()
+
+		grid, err := output.ExtractRadarGrid(tmpFile.Name())
+		os.Remove(tmpFile.Name())
+		if err != nil {
+			output.Error(fmt.Sprintf("parse radar data: %s", err))
+			continue
+		}
+
+		iFrames = append(iFrames, output.InteractiveFrame{
+			Timestamp: frame.Timestamp,
+			Grid:      grid,
+		})
+	}
+
+	if len(iFrames) == 0 {
+		output.Error("no frames could be loaded")
+		os.Exit(1)
+	}
+
+	return output.InteractiveRadar(iFrames, radarWidth, output.NoColor, !radarNoBorder, !radarNoLakes)
 }
 
 func saveRadarFile() error {

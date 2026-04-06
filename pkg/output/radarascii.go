@@ -1,11 +1,6 @@
 package output
 
 import (
-	"encoding/binary"
-	"fmt"
-	"math"
-	"os"
-	"os/exec"
 	"strings"
 )
 
@@ -18,66 +13,6 @@ type RadarGrid struct {
 	MaxLat float64
 	MinLon float64
 	MaxLon float64
-}
-
-// ExtractRadarGrid uses Python+h5py to extract the precipitation grid from an HDF5 file.
-// Returns the grid as a flat float64 array.
-func ExtractRadarGrid(h5path string) (*RadarGrid, error) {
-	script := `
-import h5py, struct, sys, math
-with h5py.File(sys.argv[1], 'r') as f:
-    data = f['dataset1/data1/data'][()]
-    where = f['where']
-    rows, cols = data.shape
-    ll_lat = float(where.attrs['LL_lat'])
-    ll_lon = float(where.attrs['LL_lon'])
-    ur_lat = float(where.attrs['UR_lat'])
-    ur_lon = float(where.attrs['UR_lon'])
-    # Write header: rows(4), cols(4), ll_lat(8), ll_lon(8), ur_lat(8), ur_lon(8)
-    sys.stdout.buffer.write(struct.pack('<ii', rows, cols))
-    sys.stdout.buffer.write(struct.pack('<dddd', ll_lat, ll_lon, ur_lat, ur_lon))
-    # Write data row by row as float64
-    for row in range(rows):
-        for col in range(cols):
-            v = float(data[row, col])
-            if math.isnan(v) or math.isinf(v):
-                v = 0.0
-            sys.stdout.buffer.write(struct.pack('<d', v))
-`
-	cmd := exec.Command("python3", "-c", script, h5path)
-	cmd.Stderr = os.Stderr
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("extract radar data (requires python3 + h5py): %w", err)
-	}
-
-	if len(out) < 40 {
-		return nil, fmt.Errorf("radar data too small: %d bytes", len(out))
-	}
-
-	// Parse header
-	rows := int(binary.LittleEndian.Uint32(out[0:4]))
-	cols := int(binary.LittleEndian.Uint32(out[4:8]))
-	llLat := math.Float64frombits(binary.LittleEndian.Uint64(out[8:16]))
-	llLon := math.Float64frombits(binary.LittleEndian.Uint64(out[16:24]))
-	urLat := math.Float64frombits(binary.LittleEndian.Uint64(out[24:32]))
-	urLon := math.Float64frombits(binary.LittleEndian.Uint64(out[32:40]))
-
-	expectedSize := 40 + rows*cols*8
-	if len(out) < expectedSize {
-		return nil, fmt.Errorf("radar data truncated: got %d, expected %d bytes", len(out), expectedSize)
-	}
-
-	data := make([]float64, rows*cols)
-	for i := range data {
-		offset := 40 + i*8
-		data[i] = math.Float64frombits(binary.LittleEndian.Uint64(out[offset : offset+8]))
-	}
-
-	return &RadarGrid{
-		Rows: rows, Cols: cols, Data: data,
-		MinLat: llLat, MaxLat: urLat, MinLon: llLon, MaxLon: urLon,
-	}, nil
 }
 
 // precipToRune maps precipitation intensity (mm/h) to a colored Unicode character.
@@ -119,7 +54,8 @@ func precipToRuneNoColor(val float64) string {
 }
 
 // RenderRadarASCII renders a radar grid as colored ASCII art.
-func RenderRadarASCII(grid *RadarGrid, width int, noColor bool) string {
+// showBorder and showLakes control whether the Swiss border and lakes are overlaid.
+func RenderRadarASCII(grid *RadarGrid, width int, noColor bool, showBorder, showLakes bool) string {
 	if grid.Rows == 0 || grid.Cols == 0 {
 		return ""
 	}
@@ -166,6 +102,12 @@ func RenderRadarASCII(grid *RadarGrid, width int, noColor bool) string {
 		height = 1
 	}
 
+	// Compute overlay grids if requested
+	var borderGrid, lakeGrid [][]bool
+	if showBorder || showLakes {
+		borderGrid, lakeGrid = RenderOverlay(width, height, chMinLat, chMaxLat, chMinLon, chMaxLon)
+	}
+
 	toRune := precipToRune
 	if noColor {
 		toRune = precipToRuneNoColor
@@ -181,7 +123,34 @@ func RenderRadarASCII(grid *RadarGrid, width int, noColor bool) string {
 				continue
 			}
 			val := grid.Data[srcRow*grid.Cols+srcCol]
-			sb.WriteString(toRune(val))
+
+			// Precipitation takes priority
+			if val > 0 {
+				sb.WriteString(toRune(val))
+				continue
+			}
+
+			// Lake overlay
+			if showLakes && lakeGrid != nil && lakeGrid[y][x] {
+				if noColor {
+					sb.WriteString("~")
+				} else {
+					sb.WriteString("\033[38;5;33m~\033[0m")
+				}
+				continue
+			}
+
+			// Border overlay
+			if showBorder && borderGrid != nil && borderGrid[y][x] {
+				if noColor {
+					sb.WriteString("·")
+				} else {
+					sb.WriteString("\033[38;5;255m·\033[0m")
+				}
+				continue
+			}
+
+			sb.WriteString(" ")
 		}
 		sb.WriteString("\n")
 	}
@@ -189,9 +158,23 @@ func RenderRadarASCII(grid *RadarGrid, width int, noColor bool) string {
 	// Add legend
 	sb.WriteString("\n")
 	if noColor {
-		sb.WriteString("Legend: ░ <0.1mm  ▒ <0.5mm  ▓ <2mm  █ >2mm\n")
+		sb.WriteString("Legend: ░ <0.1mm  ▒ <0.5mm  ▓ <2mm  █ >2mm")
+		if showBorder {
+			sb.WriteString("  · border")
+		}
+		if showLakes {
+			sb.WriteString("  ~ lake")
+		}
+		sb.WriteString("\n")
 	} else {
-		sb.WriteString("Legend: \033[38;5;39m░\033[0m <0.1mm  \033[38;5;33m▒\033[0m <0.5mm  \033[38;5;28m▓\033[0m <1mm  \033[38;5;226m▓\033[0m <2mm  \033[38;5;208m█\033[0m <5mm  \033[38;5;196m█\033[0m >5mm\n")
+		sb.WriteString("Legend: \033[38;5;39m░\033[0m <0.1mm  \033[38;5;33m▒\033[0m <0.5mm  \033[38;5;28m▓\033[0m <1mm  \033[38;5;226m▓\033[0m <2mm  \033[38;5;208m█\033[0m <5mm  \033[38;5;196m█\033[0m >5mm")
+		if showBorder {
+			sb.WriteString("  \033[38;5;255m·\033[0m border")
+		}
+		if showLakes {
+			sb.WriteString("  \033[38;5;33m~\033[0m lake")
+		}
+		sb.WriteString("\n")
 	}
 
 	return sb.String()
