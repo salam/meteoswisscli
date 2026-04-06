@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "github.com/salam/swissmeteocli/internal/whiterisk/cmd"
 
 func main() {
-	fmt.Println("whiterisk")
+	cmd.Execute()
 }
