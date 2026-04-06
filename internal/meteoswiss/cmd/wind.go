@@ -65,8 +65,59 @@ Use --browser to open the wind animation in the browser.`,
 					windData = append(windData, m)
 				}
 			}
+
+			// Determine highlight location if a location argument was given
+			var highlightLat, highlightLon float64
+			locationInput, _ := getLocationArg(args, "meteoswiss")
+			if locationInput != "" {
+				resolved, resolveErr := geo.ResolveStation(locationInput, 1)
+				if resolveErr == nil && len(resolved) > 0 {
+					highlightLat = resolved[0].Station.Lat
+					highlightLon = resolved[0].Station.Lon
+				}
+			}
+
 			output.Section("Wind Map")
-			fmt.Print(renderWindASCII(windData, windWidth, output.NoColor, !windNoBorder, !windNoLakes))
+			fmt.Print(renderWindASCII(windData, windWidth, output.NoColor, !windNoBorder, !windNoLakes, highlightLat, highlightLon))
+
+			// If location was specified, also show the data table below
+			if locationInput != "" {
+				var filteredData []api.StationMeasurement
+				resolved, resolveErr := geo.ResolveStation(locationInput, 10)
+				if resolveErr == nil {
+					codes := make(map[string]bool)
+					for _, r := range resolved {
+						codes[r.Station.Code] = true
+					}
+					for _, m := range measurements {
+						if codes[m.Station] && m.WindSpeed != "" {
+							filteredData = append(filteredData, m)
+						}
+					}
+				}
+
+				if len(filteredData) > 0 {
+					title := i18n.T("WIND") + " — " + locationInput
+					output.Section(title)
+					headers := []string{i18n.T("STATION"), i18n.T("NAME"), i18n.T("WIND"), i18n.T("GUSTS"), i18n.T("DIR")}
+					var rows [][]string
+					for _, m := range filteredData {
+						name := ""
+						if s := geo.LookupStation(m.Station); s != nil {
+							name = s.Name
+						}
+						rows = append(rows, []string{
+							m.Station,
+							name,
+							fmtVal(m.WindSpeed, " km/h"),
+							fmtVal(m.GustPeak, " km/h"),
+							fmtVal(m.WindDir, "°"),
+						})
+					}
+					output.Table(headers, rows)
+				}
+			}
+
 			fmt.Printf("\n%s\n", source.MeteoSwiss)
 			return nil
 		}

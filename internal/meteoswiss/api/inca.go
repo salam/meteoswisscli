@@ -40,10 +40,11 @@ type INCAShape struct {
 
 // INCAFrame represents a rendered INCA precipitation frame as a simple grid.
 type INCAFrame struct {
-	Timestamp string
-	Rows      int
-	Cols      int
-	Data      []float64 // row-major precipitation intensity (0-10 scale)
+	Timestamp      string
+	Rows           int
+	Cols           int
+	Data           []float64 // row-major precipitation intensity (0-10 scale)
+	HasPrecipAreas bool      // true if the JSON had non-border/lake colored areas
 }
 
 const incaBaseURL = "https://www.meteoschweiz.admin.ch/product/output"
@@ -171,11 +172,16 @@ func rasterizeINCA(resp *INCAResponse, timestamp string) *INCAFrame {
 	}
 
 	grid := make([]float64, rows*cols)
+	hasPrecipAreas := false
 
 	for _, area := range resp.Areas {
 		intensity, ok := colorIntensity[area.Color]
 		if !ok || intensity < 0 {
 			continue // skip borders, lakes, unknown
+		}
+
+		if len(area.Shapes) > 0 {
+			hasPrecipAreas = true
 		}
 
 		for _, shapeGroup := range area.Shapes {
@@ -186,10 +192,11 @@ func rasterizeINCA(resp *INCAResponse, timestamp string) *INCAFrame {
 	}
 
 	return &INCAFrame{
-		Timestamp: timestamp,
-		Rows:      rows,
-		Cols:      cols,
-		Data:      grid,
+		Timestamp:      timestamp,
+		Rows:           rows,
+		Cols:           cols,
+		Data:           grid,
+		HasPrecipAreas: hasPrecipAreas,
 	}
 }
 

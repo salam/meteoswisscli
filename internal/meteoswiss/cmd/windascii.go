@@ -9,7 +9,7 @@ import (
 	"github.com/salam/swissmeteocli/pkg/output"
 )
 
-func renderWindASCII(measurements []api.StationMeasurement, width int, noColor, showBorder, showLakes bool) string {
+func renderWindASCII(measurements []api.StationMeasurement, width int, noColor, showBorder, showLakes bool, highlightLat, highlightLon float64) string {
 	const chMinLat = 45.8
 	const chMaxLat = 47.85
 	const chMinLon = 5.9
@@ -73,6 +73,19 @@ func renderWindASCII(measurements []api.StationMeasurement, width int, noColor, 
 		arrow := directionArrow(dir)
 		colored := colorBySpeed(arrow, speed, noColor)
 		grid[y][x] = colored
+	}
+
+	// Highlight target location if specified
+	if highlightLat != 0 || highlightLon != 0 {
+		hx := int((highlightLon - chMinLon) / (chMaxLon - chMinLon) * float64(width))
+		hy := int((chMaxLat - highlightLat) / (chMaxLat - chMinLat) * float64(height))
+		if hx >= 0 && hx < width && hy >= 0 && hy < height {
+			if noColor {
+				grid[hy][hx] = "*"
+			} else {
+				grid[hy][hx] = "\033[95m◉\033[0m" // bright magenta
+			}
+		}
 	}
 
 	// Render grid to string

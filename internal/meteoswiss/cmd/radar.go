@@ -166,6 +166,7 @@ func renderRadarASCII() error {
 		fmt.Printf("Fetching radar frame %d/%d (%s)...\n", i+1, len(combined), label)
 
 		var grid *output.RadarGrid
+		var hasPrecipAreas bool
 
 		if frame.Source == "inca" && frame.INCATs != "" {
 			// Fetch INCA frame
@@ -175,6 +176,7 @@ func renderRadarASCII() error {
 				continue
 			}
 			grid = incaFrameToGrid(incaFrame)
+			hasPrecipAreas = incaFrame.HasPrecipAreas
 		} else {
 			// Download HDF5 to temp file
 			h5data, err := client.DownloadRadarH5(frame.URL)
@@ -200,7 +202,12 @@ func renderRadarASCII() error {
 		}
 
 		output.Section(fmt.Sprintf("Precipitation Radar — %s", label))
-		fmt.Print(output.RenderRadarASCII(grid, radarWidth, output.NoColor, !radarNoBorder, !radarNoLakes))
+		if hasPrecipAreas && isGridEmpty(grid) {
+			fmt.Println("[INCA Forecast] Precipitation detected but vector format not yet renderable.")
+			fmt.Println("Open in browser for full visualization: meteoswiss radar --browser")
+		} else {
+			fmt.Print(output.RenderRadarASCII(grid, radarWidth, output.NoColor, !radarNoBorder, !radarNoLakes))
+		}
 
 		if i < len(combined)-1 {
 			fmt.Println()
@@ -235,6 +242,7 @@ func renderRadarInteractive() error {
 		fmt.Printf("\rFetching radar frame %d/%d (%s)...", i+1, len(combined), label)
 
 		var grid *output.RadarGrid
+		var hasPrecipAreas bool
 
 		if frame.Source == "inca" && frame.INCATs != "" {
 			incaFrame, err := client.GetINCAFrame(incaVersion, frame.INCATs)
@@ -243,6 +251,7 @@ func renderRadarInteractive() error {
 				continue
 			}
 			grid = incaFrameToGrid(incaFrame)
+			hasPrecipAreas = incaFrame.HasPrecipAreas
 		} else {
 			h5data, err := client.DownloadRadarH5(frame.URL)
 			if err != nil {
@@ -267,8 +276,10 @@ func renderRadarInteractive() error {
 		}
 
 		iFrames = append(iFrames, output.InteractiveFrame{
-			Timestamp: frame.Timestamp,
-			Grid:      grid,
+			Timestamp:      frame.Timestamp,
+			Grid:           grid,
+			IsForecast:     frame.IsForecast,
+			HasPrecipAreas: hasPrecipAreas,
 		})
 	}
 
@@ -411,23 +422,34 @@ func formatFrameLabel(timestamp string) string {
 	if err != nil {
 		return timestamp
 	}
+	localTs := t.Local().Format("2006-01-02 15:04")
 	diff := time.Since(t)
 	if diff < -30*time.Second {
 		// Future
 		mins := int((-diff).Minutes())
 		if mins < 60 {
-			return fmt.Sprintf("%s (+%dmin forecast)", timestamp, mins)
+			return fmt.Sprintf("%s (+%dmin forecast)", localTs, mins)
 		}
-		return fmt.Sprintf("%s (+%dh%02dmin forecast)", timestamp, mins/60, mins%60)
+		return fmt.Sprintf("%s (+%dh%02dmin forecast)", localTs, mins/60, mins%60)
 	}
 	if diff < 5*time.Minute {
-		return fmt.Sprintf("%s (now)", timestamp)
+		return fmt.Sprintf("%s (now)", localTs)
 	}
 	mins := int(diff.Minutes())
 	if mins < 60 {
-		return fmt.Sprintf("%s (-%dmin)", timestamp, mins)
+		return fmt.Sprintf("%s (-%dmin)", localTs, mins)
 	}
-	return fmt.Sprintf("%s (-%dh%02dmin)", timestamp, mins/60, mins%60)
+	return fmt.Sprintf("%s (-%dh%02dmin)", localTs, mins/60, mins%60)
+}
+
+// isGridEmpty returns true if all values in the grid are zero.
+func isGridEmpty(grid *output.RadarGrid) bool {
+	for _, v := range grid.Data {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func saveRadarFile() error {
@@ -443,7 +465,8 @@ func saveRadarFile() error {
 	}
 
 	frame := frames[0]
-	fmt.Printf("Downloading radar frame %s...\n", frame.Timestamp)
+	dlLabel := formatFrameLabel(frame.Timestamp)
+	fmt.Printf("Downloading radar frame %s...\n", dlLabel)
 
 	data, err := client.DownloadRadarH5(frame.URL)
 	if err != nil {

@@ -10,8 +10,10 @@ import (
 
 // InteractiveFrame holds a single radar frame for interactive viewing.
 type InteractiveFrame struct {
-	Timestamp string
-	Grid      *RadarGrid
+	Timestamp      string
+	Grid           *RadarGrid
+	IsForecast     bool
+	HasPrecipAreas bool
 }
 
 // relativeTime formats a timestamp relative to now (e.g. "-30min", "now", "+1h").
@@ -88,7 +90,13 @@ func InteractiveRadar(frames []InteractiveFrame, width int, noColor, showBorder,
 
 		f := frames[idx]
 		rel := relativeTime(f.Timestamp)
-		timeLabel := f.Timestamp
+		// Convert UTC timestamp to local time for display
+		utcTime, _ := time.Parse("2006-01-02 15:04", f.Timestamp)
+		localTs := utcTime.Local().Format("2006-01-02 15:04")
+		timeLabel := localTs
+		if f.IsForecast {
+			timeLabel += " (forecast)"
+		}
 		if rel != "" {
 			timeLabel += "  (" + rel + ")"
 		}
@@ -102,9 +110,14 @@ func InteractiveRadar(frames []InteractiveFrame, width int, noColor, showBorder,
 		fmt.Printf("%s\r\n", timeline)
 		fmt.Printf("← prev  → next  q quit\r\n\r\n")
 
-		rendered := RenderRadarASCII(f.Grid, width, noColor, showBorder, showLakes)
-		for _, line := range splitLines(rendered) {
-			fmt.Printf("%s\r\n", line)
+		if f.HasPrecipAreas && isInteractiveGridEmpty(f.Grid) {
+			fmt.Printf("[INCA Forecast] Precipitation detected but vector format not yet renderable.\r\n")
+			fmt.Printf("Open in browser for full visualization: meteoswiss radar --browser\r\n")
+		} else {
+			rendered := RenderRadarASCII(f.Grid, width, noColor, showBorder, showLakes)
+			for _, line := range splitLines(rendered) {
+				fmt.Printf("%s\r\n", line)
+			}
 		}
 
 		// Read key
@@ -143,6 +156,16 @@ func InteractiveRadar(frames []InteractiveFrame, width int, noColor, showBorder,
 	}
 
 	return nil
+}
+
+// isInteractiveGridEmpty returns true if all values in the radar grid are zero.
+func isInteractiveGridEmpty(grid *RadarGrid) bool {
+	for _, v := range grid.Data {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // splitLines splits a string into lines without the trailing newline.
