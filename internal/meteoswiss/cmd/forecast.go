@@ -105,15 +105,21 @@ var forecastCmd = &cobra.Command{
 			}
 		}
 
-		// Show icon legend for the icons used in this forecast
+		// Show icon legend for the icons mentioned above (current weather + forecast days)
 		if output.IsInteractive() {
 			fmt.Println()
+			output.Section(i18n.T("Icons"))
 			seen := make(map[int]bool)
-			for _, d := range days {
-				if !seen[d.IconDay] {
-					seen[d.IconDay] = true
-					fmt.Printf("  Icon %d: %s\n         %s\n", d.IconDay, api.IconDescription(d.IconDay), api.WeatherIconURL(d.IconDay))
+			printIcon := func(id int) {
+				if seen[id] {
+					return
 				}
+				seen[id] = true
+				fmt.Printf("  Icon %d: %s\n         %s\n", id, api.IconDescription(id), api.WeatherIconURL(id))
+			}
+			printIcon(cw.Icon)
+			for _, d := range days {
+				printIcon(d.IconDay)
 			}
 		}
 

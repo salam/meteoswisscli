@@ -5,7 +5,7 @@ import "fmt"
 // WeatherIconURL returns the MeteoSwiss icon URL for a given icon ID.
 // Icon IDs from the plzDetail API correspond to weather condition codes.
 func WeatherIconURL(iconID int) string {
-	return fmt.Sprintf("https://www.meteoschweiz.admin.ch/static/resources/weather-icons/weather-symbol/%d.svg", iconID)
+	return fmt.Sprintf("https://www.meteoschweiz.admin.ch/static/resources/weather-symbols/%d.svg", iconID)
 }
 
 var iconDescriptions = map[int]string{

@@ -27,6 +27,12 @@ var translations = map[string]map[string]string{
 		"it": "Allerte",
 		"en": "Warnings",
 	},
+	"Icons": {
+		"de": "Symbole",
+		"fr": "Icônes",
+		"it": "Icone",
+		"en": "Icons",
+	},
 	"Current Measurements": {
 		"de": "Aktuelle Messwerte",
 		"fr": "Mesures actuelles",

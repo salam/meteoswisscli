@@ -106,7 +106,7 @@ func TestIconDescription_Unknown(t *testing.T) {
 
 func TestWeatherIconURL(t *testing.T) {
 	url := WeatherIconURL(1)
-	if url != "https://www.meteoschweiz.admin.ch/static/resources/weather-icons/weather-symbol/1.svg" {
+	if url != "https://www.meteoschweiz.admin.ch/static/resources/weather-symbols/1.svg" {
 		t.Errorf("WeatherIconURL(1) = %q", url)
 	}
 }

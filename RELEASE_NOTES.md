@@ -1,5 +1,10 @@
 # Release Notes
 
+## Release (Wed, May 13 23:42)
+
+* Forecast icon URLs updated to current MeteoSwiss path (`/weather-symbols/<id>.svg`) [ma]
+* Forecast icon legend now has its own "Icons" section and includes the current-weather icon alongside the forecast-day icons [ma]
+
 ## v0.1.1 (Sun, Apr 6 11:15)
 
 * INCA nowcast precipitation forecast: `radar --list` now shows frames extending up to +6h into the future using MeteoSwiss INCA data [claude]
