@@ -4,6 +4,7 @@
 
 * Forecast icon URLs updated to current MeteoSwiss path (`/weather-symbols/<id>.svg`) [ma]
 * Forecast icon legend now has its own "Icons" section and includes the current-weather icon alongside the forecast-day icons [ma]
+* `meteoswiss forecast <loc1> <loc2> ...` now compares up to 5 locations side by side: indexed location/current-weather headers, a single date-aligned forecast table with per-location columns, per-location warnings, and a combined deduplicated icons legend [ma]
 
 ## v0.1.1 (Sun, Apr 6 11:15)
 
